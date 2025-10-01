@@ -1,6 +1,6 @@
 # cpp-utils
 
-It's a collection of usefull functions and classes for c++ projects
+It's a collection of usefull functions and classes for c++ projects  
 All the cpp projects I've done so far are dependent on it.
 
 > [!NOTE]
@@ -13,7 +13,7 @@ This repo need to be build as a shared library (.so)
 > [!NOTE]
 > In a near future, you'll be able to grab the prebuild binaries.  
 > But for now, you'll have to build it yourself.  
-> You'll see it's pretty straightforward, I made you a script that do all for you. (I know, I know, I'm too good)
+> You'll see it's pretty straightforward, I made you a script that do all for you. *(I know, I know, I'm too good)*
 
 So, to build it yourself, nothing easier.  
 `git clone` this repo and execute the file `build-n-install` as `sudo`.
@@ -23,18 +23,18 @@ I told you it was pretty straightforward.
 
 For your convinience here the code that you can copy and past in a terminal directly :
 ```bash
-git clone https://github.com/romain-donnes/cpp-utils.git
+git clone https://github.com/Rrominet/cpp-utils.git
 cd cpp-utils
 sudo chmod +x ./build-n-install
 sudo ./build-n-install
 ```
 
 > [!WARNING]
-> In the `build-n-install` script, it install some dependencies with `apt`.
-> BUT if you are on a non-debian system, it won't work.
-> In that case, just adabt the first line of the script `sudo apt install ...` to your system's package manager.
-> FYI, here are the libs installed by the script : 
-> build-essential git gcc g++ wget zip unzip libboost-all-dev
+> In the `build-n-install` script, it install some dependencies with `apt`.  
+> BUT if you are on a non-debian system, it won't work.  
+> In that case, just adabt the first line of the script `sudo apt install ...` to your system's package manager.  
+> FYI, here are the libs installed by the script :   
+> `build-essential` `git` `gcc` `g++` `wget` `zip` `unzip` `libboost-all-dev`
 
 After the installtion done, you'll see a new directory called `cpp-utils_dependencies` in the parent directory of the `cpp-utils` local repo.
 
@@ -44,11 +44,11 @@ But if you want to rebuild it or change the code, or use it as a lib in one of y
 
 # Usage
 
-For now, it's usage is basicly a dependency for the other cpp projects I've done so far.
+For now, it's usage is basicly a dependency for the other cpp projects I've done so far.  
 The projects dependent on it will basicly clone this repo and do the installation directly.
 
-You also can use it as a shared lib on your own project but I need to write the documentation for that.
-Waiting for this to happen, you can always check the content of the `make` file to see the different `includes` and libraries links you need to do.
+You also can use it as a shared lib on your own project but I need to write the documentation for that.  
+Waiting for this to happen, you can always check the content of the [make](https://github.com/Rrominet/cpp-utils/blob/main/make) file to see the different `includes` and libraries links you need to do.
 The `make` script is a file that run `fxmake`, my own builder that you can find in [this repo](https://github.com/Rrominet/py-utils/tree/main/build).
 
 # TODO
