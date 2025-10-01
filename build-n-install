@@ -27,6 +27,10 @@ unzip json.zip
 unzip eigen.zip
 unzip sha3.zip
 unzip fmodstudioapi20000linux.zip
+echo "Installing fmod lib on the system (/usr/local/lib)..."
+cp fmodstudioapi20000linux/api/core/lib/x86_64/* /usr/local/lib/
+echo "Fmod lib installed."
+
 unzip FreeImage.zip
 unzip FreeImagePlus-build.zip
 
@@ -42,3 +46,5 @@ chmod 777 ./libmlapi.so
 cp ./libmlapi.so /usr/local/lib/libmlapi.so
 chmod +x ../add-local-to-linker
 ../add-local-to-linker
+
+echo "The shared library libmlapi.so (cpp-utils) is installed in /usr/local/lib/libmlapi.so"
