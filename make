@@ -1,4 +1,4 @@
-#!/usr/local/bin/python
+#!/usr/bin/env python3
 from ml import build
 from ml.boilerplate import cpp
 from ml import fileTools as ft
@@ -6,6 +6,13 @@ import os
 import sys
 
 libs = "/media/romain/Donnees/Programmation/cpp/libs"
+
+for arg in sys.argv:
+    if "libs=" in arg:
+        libs = arg.split("=")[1]
+
+if libs.last() == "/":
+    libs = libs[:-1]
 
 cpp.generate("..")
 includes = [
@@ -37,7 +44,7 @@ fm.addToLibs([
     "pthread", 
     "stdc++fs",
     "boost_filesystem",
-    "/media/romain/Donnees/Programmation/C++/libs/FreeImagePlus-build/libfreeimageplus.a",
+    libs + "/FreeImagePlus-build/libfreeimageplus.a",
     "fmod",
     "fmodL"
     ])
@@ -45,7 +52,7 @@ fm.shared = True
 fm.definitions += ["NO_LOGS"]
 
 if ("clear" in sys.argv):
-        fm.clean()
-        exit()
+    fm.clean()
+    exit()
 
 fm.build()
