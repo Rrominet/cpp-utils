@@ -50,6 +50,7 @@ fm.addToLibs([
     ])
 fm.shared = True
 fm.definitions += ["NO_LOGS"]
+fm.flags += ["-std=c++17"]
 
 if ("clear" in sys.argv):
     fm.clean()

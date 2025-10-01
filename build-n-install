@@ -5,11 +5,10 @@ apt install -y build-essential git gcc g++ wget zip unzip libboost-all-dev
 
 cd ..
 git clone https://github.com/Rrominet/py-utils.git
-cd py-utils 
+cd ./py-utils 
 chmod +x ./install
 ./install
 cd ..
-rm -rf ./py-utils
 
 mkdir cpp-utils_dependencies
 cd cpp-utils_dependencies
