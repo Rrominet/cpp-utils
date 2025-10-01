@@ -11,7 +11,7 @@ for arg in sys.argv:
     if "libs=" in arg:
         libs = arg.split("=")[1]
 
-if libs.last() == "/":
+if libs[-1] == "/":
     libs = libs[:-1]
 
 cpp.generate("..")
