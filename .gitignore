@@ -1,0 +1,15 @@
+tests
+*~*
+*.swp
+*.cache
+*.cache/
+build/
+
+*.jpg
+*.webp
+*.png
+*.o
+*clangd*
+.clangd/
+.clangd
+compile_commands.json
