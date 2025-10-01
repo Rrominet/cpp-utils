@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+#
+
+apt install -y build-essential git gcc g++ wget zip unzip libboost-all-dev
+
+cd ..
+git clone https://github.com/Rrominet/py-utils.git
+cd py-utils 
+chmod +x ./install
+./install
+cd ..
+rm -rf ./py-utils
+
+mkdir cpp-utils_dependencies
+cd cpp-utils_dependencies
+
+dpdir="$(pwd)"
+
+#get all the dependencies here...
+wget https://motion-live.com/fxos/dependencies/json.zip
+wget https://motion-live.com/fxos/dependencies/eigen.zip
+wget https://motion-live.com/fxos/dependencies/sha3.zip
+wget https://motion-live.com/fxos/dependencies/fmodstudioapi20000linux.zip
+wget https://motion-live.com/fxos/dependencies/FreeImage.zip
+wget https://motion-live.com/fxos/dependencies/FreeImagePlus-build.zip
+
+unzip json.zip
+unzip eigen.zip
+unzip sha3.zip
+unzip fmodstudioapi20000linux.zip
+unzip FreeImage.zip
+unzip FreeImagePlus-build.zip
+
+rm -rf json.zip eigen.zip sha3.zip fmodstudioapi20000linux.zip FreeImage.zip FreeImagePlus-build.zip
+
+cd ../cpp-utils
+chmod +x ./make
+mkdir build
+cd build
+../make release libs="$dpdir"
+chmod 777 ./libmlapi.so
+
+cp ./libmlapi.so /usr/local/lib/libmlapi.so
+chmod +x ../add-local-to-linker
+../add-local-to-linker
