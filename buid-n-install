@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 
-apt install -y build-essential git gcc g++ wget zip unzip
+apt install -y build-essential git gcc g++ wget zip unzip libboost-all-dev
 
 cd ..
 git clone https://github.com/Rrominet/py-utils.git
@@ -37,4 +37,9 @@ cd ../cpp-utils
 chmod +x ./make
 mkdir build
 cd build
-../make release shares libs="$dpdir"
+../make release libs="$dpdir"
+chmod 777 ./libmlapi.so
+
+cp ./libmlapi.so /usr/local/lib/libmlapi.so
+chmod +x ../add-local-to-linker
+../add-local-to-linker

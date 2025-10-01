@@ -1,0 +1,35 @@
+
+#!/bin/bash
+set -e
+
+CONF_FILE="/etc/ld.so.conf.d/local-lib.conf"
+LIB_PATHS=("/usr/local/lib" "/usr/local/lib64")
+
+echo "Checking linker search paths..."
+
+# Function to check if a path is already known by ldconfig
+is_in_ldconfig() {
+    ldconfig -v 2>/dev/null | grep -q "$1"
+}
+
+# Ensure the config file exists
+if [ ! -f "$CONF_FILE" ]; then
+    sudo touch "$CONF_FILE"
+fi
+
+# Add missing paths
+for path in "${LIB_PATHS[@]}"; do
+    if is_in_ldconfig "$path"; then
+        echo "✓ $path already in linker path."
+    else
+        if ! grep -q "$path" "$CONF_FILE"; then
+            echo "Adding $path..."
+            echo "$path" | sudo tee -a "$CONF_FILE" >/dev/null
+        fi
+    fi
+done
+
+# Update linker cache
+echo "Running ldconfig..."
+sudo ldconfig
+echo "All done. Local lib paths are active."
