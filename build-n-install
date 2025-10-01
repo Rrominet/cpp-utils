@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 #
+if [[ $EUID -ne 0 ]]; then
+   echo "This script must be run as root (use sudo)" >&2
+   exit 1
+fi
 
 apt install -y build-essential git gcc g++ wget zip unzip libboost-all-dev
 
@@ -10,7 +14,7 @@ chmod +x ./install
 ./install
 cd ..
 
-mkdir cpp-utils_dependencies
+mkdir -p cpp-utils_dependencies
 cd cpp-utils_dependencies
 
 dpdir="$(pwd)"
@@ -38,10 +42,10 @@ rm -rf json.zip eigen.zip sha3.zip fmodstudioapi20000linux.zip FreeImage.zip Fre
 
 cd ../cpp-utils
 chmod +x ./make
-mkdir build
+mkdir -p build
 cd build
 ../make release libs="$dpdir"
-chmod 777 ./libmlapi.so
+chmod 755 ./libmlapi.so
 
 cp ./libmlapi.so /usr/local/lib/libmlapi.so
 chmod +x ../add-local-to-linker
