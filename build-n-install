@@ -1,54 +1,102 @@
-#!/usr/bin/env bash
-#
-if [[ $EUID -ne 0 ]]; then
-   echo "This script must be run as root (use sudo)" >&2
-   exit 1
-fi
+#!/usr/bin/env python3
+import os
+import sys
+import subprocess
+import shutil
+import time
 
-apt install -y build-essential git gcc g++ wget zip unzip libboost-all-dev
+def run(cmd, check=True, cwd=None):
+    print(f"→ {cmd}")
+    subprocess.run(cmd, shell=True, check=check, cwd=cwd)
 
-cd ..
-git clone https://github.com/Rrominet/py-utils.git
-cd ./py-utils 
-chmod +x ./install
-./install
-cd ..
+def main():
+    # must be root
+    if os.geteuid() != 0:
+        print("This script must be run as root (use sudo)", file=sys.stderr)
+        sys.exit(1)
 
-mkdir -p cpp-utils_dependencies
-cd cpp-utils_dependencies
+    path = "/usr/local/lib/libmlapi.so"
 
-dpdir="$(pwd)"
+    if os.path.isfile(path):
+        mtime = os.path.getmtime(path)   # last modification time (seconds since epoch)
+        age = time.time() - mtime        # file age in seconds
 
-#get all the dependencies here...
-wget https://motion-live.com/fxos/dependencies/json.zip
-wget https://motion-live.com/fxos/dependencies/eigen.zip
-wget https://motion-live.com/fxos/dependencies/sha3.zip
-wget https://motion-live.com/fxos/dependencies/fmodstudioapi20000linux.zip
-wget https://motion-live.com/fxos/dependencies/FreeImage.zip
-wget https://motion-live.com/fxos/dependencies/FreeImagePlus-build.zip
+        if age < 1800:  # 1800 = 30min
+            print("mlapi is already installed and recent (less than 30min). Skipping.")
+            exit(0);
+        else:
+            print("mlapi is already installed but older than 30min. Reinstalling...")
+            os.remove(path)
+    else:
+        print("mlapi is not installed. Installing...")
 
-unzip json.zip
-unzip eigen.zip
-unzip sha3.zip
-unzip fmodstudioapi20000linux.zip
-echo "Installing fmod lib on the system (/usr/local/lib)..."
-cp fmodstudioapi20000linux/api/core/lib/x86_64/* /usr/local/lib/
-echo "Fmod lib installed."
+    # install deps
+    run("apt install -y build-essential git gcc g++ wget zip unzip libboost-all-dev")
 
-unzip FreeImage.zip
-unzip FreeImagePlus-build.zip
+    # clone py-utils
+    os.chdir("..")
+    if os.path.isdir("py-utils"):
+        print("py-utils directory already exists. Removing it.")
+        shutil.rmtree("py-utils")
+    run("git clone https://github.com/Rrominet/py-utils.git")
+    os.chdir("py-utils")
+    run("chmod +x ./install")
+    run("./install")
+    os.chdir("..")
+    shutil.rmtree("py-utils")
 
-rm -rf json.zip eigen.zip sha3.zip fmodstudioapi20000linux.zip FreeImage.zip FreeImagePlus-build.zip
+    # cpp-utils_dependencies
+    if os.path.isdir("cpp-utils_dependencies"):
+        print("cpp-utils_dependencies directory already exists. Skipping the download.")
+        dpdir = os.path.abspath("cpp-utils_dependencies")
+    else:
+        os.mkdir("cpp-utils_dependencies")
+        os.chdir("cpp-utils_dependencies")
+        dpdir = os.getcwd()
 
-cd ../cpp-utils
-chmod +x ./make
-mkdir -p build
-cd build
-../make release libs="$dpdir"
-chmod 755 ./libmlapi.so
+        urls = [
+            "https://motion-live.com/fxos/dependencies/json.zip",
+            "https://motion-live.com/fxos/dependencies/eigen.zip",
+            "https://motion-live.com/fxos/dependencies/sha3.zip",
+            "https://motion-live.com/fxos/dependencies/fmodstudioapi20000linux.zip",
+            "https://motion-live.com/fxos/dependencies/FreeImage.zip",
+            "https://motion-live.com/fxos/dependencies/FreeImagePlus-build.zip",
+        ]
 
-cp ./libmlapi.so /usr/local/lib/libmlapi.so
-chmod +x ../add-local-to-linker
-../add-local-to-linker
+        for url in urls:
+            run(f"wget {url}")
+        for fname in os.listdir("."):
+            if fname.endswith(".zip"):
+                run(f"unzip {fname}")
+                os.remove(fname)
+        os.chdir("..")
 
-echo "The shared library libmlapi.so (cpp-utils) is installed in /usr/local/lib/libmlapi.so"
+    # fmod lib
+    if os.path.isfile("/usr/local/lib/libfmod.so"):
+        print("Fmod lib already installed. Skipping.")
+    else:
+        print("Installing fmod lib on the system (/usr/local/lib)...")
+        src = os.path.join(dpdir, "fmodstudioapi20000linux/api/core/lib/x86_64")
+        run(f"cp {src}/* /usr/local/lib/")
+        print("Fmod lib installed.")
+
+    # build cpp-utils
+    os.chdir("cpp-utils")
+    run("chmod +x ./make")
+    os.makedirs("build", exist_ok=True)
+    os.chdir("build")
+    run(f"../make release libs=\"{dpdir}\"")
+    run("chmod 755 ./libmlapi.so")
+
+    libpath = "/usr/local/lib/libmlapi.so"
+    if os.path.isfile(libpath):
+        print("Old version of mlapi found. Removing it.")
+        run(f"rm -vf {libpath}")
+    run(f"cp ./libmlapi.so {libpath}")
+    run("chmod +x ../add-local-to-linker")
+    run("../add-local-to-linker")
+
+    print("The shared library libmlapi.so (cpp-utils) is installed in /usr/local/lib/libmlapi.so")
+
+if __name__ == "__main__":
+    main()
