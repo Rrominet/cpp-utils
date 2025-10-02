@@ -17,18 +17,6 @@ def main():
 
     path = "/usr/local/lib/libmlapi.so"
 
-    if os.path.isfile(path):
-        mtime = os.path.getmtime(path)   # last modification time (seconds since epoch)
-        age = time.time() - mtime        # file age in seconds
-
-        if age < 1800:  # 1800 = 30min
-            print("mlapi is already installed and recent (less than 30min). Skipping.")
-            exit(0);
-        else:
-            print("mlapi is already installed but older than 30min. Reinstalling...")
-            os.remove(path)
-    else:
-        print("mlapi is not installed. Installing...")
 
     # install deps
     run("apt install -y build-essential git gcc g++ wget zip unzip libboost-all-dev")
@@ -79,6 +67,19 @@ def main():
         src = os.path.join(dpdir, "fmodstudioapi20000linux/api/core/lib/x86_64")
         run(f"cp {src}/* /usr/local/lib/")
         print("Fmod lib installed.")
+
+    if os.path.isfile(path):
+        mtime = os.path.getmtime(path)   # last modification time (seconds since epoch)
+        age = time.time() - mtime        # file age in seconds
+
+        if age < 1800:  # 1800 = 30min
+            print("mlapi is already installed and recent (less than 30min). Skipping.")
+            exit(0);
+        else:
+            print("mlapi is already installed but older than 30min. Reinstalling...")
+            os.remove(path)
+    else:
+        print("mlapi is not installed. Installing...")
 
     # build cpp-utils
     os.chdir("cpp-utils")
