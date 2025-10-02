@@ -244,7 +244,10 @@ std::string network::client_request_as_http(const std::string& path, const std::
     if (method ==  GET)
     {
         _r = "GET";
-        _r += " " + path + "?" + url_encode(data) + " HTTP/1.1\r\n";
+        if (!data.empty())
+            _r += " " + path + "?" + url_encode(data) + " HTTP/1.1\r\n";
+        else 
+            _r += " " + path + " HTTP/1.1\r\n";
     }
     else if (method == POST)
     {

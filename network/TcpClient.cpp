@@ -65,3 +65,51 @@ std::string TcpClient::sendAsHttp(const json& data,const std::string& path, bool
    std::string http = network::client_request_as_http(path, data.dump(), network::POST, network::JSON);	
    return this->send(http, waitForResponse);
 }
+
+void TcpClient::listen(const std::function<void (const std::string& line)>& callback,const std::string& dataToSend, const std::string& del)
+{
+    try
+    {
+        auto endpoints = _resolver.resolve(_ip, _port);
+        boost::asio::connect(_socket, endpoints);
+        boost::system::error_code err;
+
+        if (!dataToSend.empty())
+            _socket.write_some(boost::asio::buffer(dataToSend), err);
+        else
+            _socket.write_some(boost::asio::buffer(del), err);
+
+        boost::asio::streambuf buffer;
+        for (;;)
+        {
+            // read *whatever's available* (doesn't force a delimiter)
+            std::size_t n = boost::asio::read(_socket, buffer.prepare(_read_buffer_size),
+                    boost::asio::transfer_at_least(1), err);
+            if (err == boost::asio::error::eof) {
+                std::cout << "Server closed connection\n";
+                break;
+            } else if (err) {
+                std::cerr << "Error: " << err.message() << "\n";
+                break;
+            }
+
+            buffer.commit(n);
+
+            // Now parse the buffer manually, like curl does
+            std::istream is(&buffer);
+            std::string line;
+            while (std::getline(is, line)) {
+                callback(line);
+            }
+
+        }
+    }
+
+    catch(const std::exception& e){throw;}
+}
+
+void TcpClient::listenAsHttp(const std::function<void (const std::string& line)>& callback, const std::string& path, const std::string& del)
+{
+    std::string http = network::client_request_as_http(path, "", network::GET, network::STRING);	
+    this->listen(callback, http, del);
+}

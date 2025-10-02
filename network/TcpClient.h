@@ -29,4 +29,7 @@ class TcpClient
 
         std::string sendAsHttp(const std::string& data, const std::string& path="/", bool waitForResponse=true);
         std::string sendAsHttp(const json& data, const std::string& path="/", bool waitForResponse=true);
+
+        void listen(const std::function<void (const std::string& line)>& callback, const std::string& dataToSend="", const std::string& del="\n");
+        void listenAsHttp(const std::function<void (const std::string& line)>& callback, const std::string& path="/", const std::string& del="\n");
 };
