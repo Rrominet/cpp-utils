@@ -20,7 +20,7 @@ namespace ml
         std::string asStringForFile(int64_t time);
 
         // this the format returned by this function : yyyy-mm-dd
-        std::string asStringReverse(int64_t time);
+        std::string asStringReverse(int64_t time, bool includeHours = false);
 
         // you need to put a % before your letters like that : %m-%d-%Y instead of m-d-Y
         int64_t fromString(const std::string& time, const std::string& format = "%d/%m/%Y %H:%M:%S");

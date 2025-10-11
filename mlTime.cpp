@@ -55,11 +55,14 @@ std::string ml::time::asStringForFile(int64_t time)
     return oss.str();
 }
 
-std::string ml::time::asStringReverse(int64_t time)
+std::string ml::time::asStringReverse(int64_t time, bool includeHours )
 {
     auto tm = *std::localtime((const time_t*)&time);
     std::ostringstream oss;
-    oss << std::put_time(&tm, "%Y-%m-%d");
+    if (!includeHours)
+        oss << std::put_time(&tm, "%Y-%m-%d");
+    else 
+        oss << std::put_time(&tm, "%Y-%m-%d : %H:%M:%S");
     return oss.str();
 }
 
