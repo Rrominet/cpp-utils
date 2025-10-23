@@ -20,7 +20,10 @@ namespace math
             std::string fl = tmp[1];
             fl = fl.substr(0, round);
 
-            return i + "." + fl;
+            if (fl.empty())
+                return i;
+            else 
+                return i + "." + fl;
         }
 
     template<typename T = float>

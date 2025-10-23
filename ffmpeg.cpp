@@ -100,8 +100,10 @@ std::string ffmpeg::web(const std::string& file, const std::string output, const
     return cmd;
 }
 
-std::vector<std::string> ffprobe::data_cmd(const std::string& filename, const std::string& ffprobe)
+std::vector<std::string> ffprobe::data_cmd(const std::string& filename, std::string ffprobe)
 {
+    if (ffprobe.empty())
+        ffprobe = bp::search_path("ffprobe").string();
     std::vector<std::string> cmd = {
         ffprobe, "-loglevel", "-8", "-print_format", "json", "-show_format", "-show_streams", filename
     };

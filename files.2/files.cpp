@@ -729,6 +729,8 @@ namespace files
 
     std::string cleaned(std::string path)
     {
+        if (path.empty())
+            return path;
 #ifdef __linux__
         if (path[0] != '/')
             path = files::sep() + path;

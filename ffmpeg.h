@@ -38,54 +38,54 @@ namespace ffmpeg
 
 namespace ffprobe
 {
-    std::vector<std::string> data_cmd(const std::string& filename, const std::string& ffprobe="ffprobe");
-    json data(const std::string& filename, const std::string& ffprobe="ffprobe");
+    std::vector<std::string> data_cmd(const std::string& filename, std::string ffprobe="");
+    json data(const std::string& filename, const std::string& ffprobe="");
 
     std::string format(const json& data);
-    std::string format(const std::string& filename, const std::string& ffprobe="ffprobe");
+    std::string format(const std::string& filename, const std::string& ffprobe="");
 
     double duration(const json& data);
-    double duration(const std::string& filename, const std::string& ffprobe="ffprobe");
+    double duration(const std::string& filename, const std::string& ffprobe="");
 
     double bitRate(const json& data);
-    double bitRate(const std::string& filename, const std::string& ffprobe="ffprobe");
+    double bitRate(const std::string& filename, const std::string& ffprobe="");
 
     std::string videoCodec(const json& data);
-    std::string videoCodec(const std::string& filename, const std::string& ffprobe="ffprobe");
+    std::string videoCodec(const std::string& filename, const std::string& ffprobe="");
 
     std::string audioCodec(const json& data);
-    std::string audioCodec(const std::string& filename, const std::string& ffprobe="ffprobe");
+    std::string audioCodec(const std::string& filename, const std::string& ffprobe="");
 
     json videoStream(const json& data);
-    json videoStream(const std::string& filename, const std::string& ffprobe="ffprobe");
+    json videoStream(const std::string& filename, const std::string& ffprobe="");
 
     json audioStream(const json& data);
-    json audioStream(const std::string& filename, const std::string& ffprobe="ffprobe");
+    json audioStream(const std::string& filename, const std::string& ffprobe="");
 
     int width(const json& data);
-    int width(const std::string& filename, const std::string& ffprobe="ffprobe");
+    int width(const std::string& filename, const std::string& ffprobe="");
 
     int height(const json& data);
-    int height(const std::string& filename, const std::string& ffprobe="ffprobe");
+    int height(const std::string& filename, const std::string& ffprobe="");
 
     double fps(const json& data);
-    double fps(const std::string& filename, const std::string& ffprobe="ffprobe");
+    double fps(const std::string& filename, const std::string& ffprobe="");
 
     //return the number of miliseconds you have to wait to next frame (from fps)
     //example 24.00 fps is 41.666, 60fps is 16.666
     //
     double mTimer(const json& data);
-    double mTimer(const std::string& filename, const std::string& ffprobe="ffprobe");
+    double mTimer(const std::string& filename, const std::string& ffprobe="");
 
     long microTimer(const json& data);
-    long microTimer(const std::string& filename, const std::string& ffprobe="ffprobe");
+    long microTimer(const std::string& filename, const std::string& ffprobe="");
 
     int framesNumber(const json& data);
-    int framesNumber(const std::string& filename, const std::string& ffprobe="ffprobe");
+    int framesNumber(const std::string& filename, const std::string& ffprobe="");
 
     int audioSampleRate(const json& data);
-    int audioSampleRate(const std::string& filename, const std::string& ffprobe="ffprobe");
+    int audioSampleRate(const std::string& filename, const std::string& ffprobe="");
 
     int audioMaxBitRate(const json& data);
-    int audioMaxBitRate(const std::string& filename, const std::string& ffprobe="ffprobe");
+    int audioMaxBitRate(const std::string& filename, const std::string& ffprobe="");
 }

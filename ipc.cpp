@@ -269,7 +269,9 @@ namespace ipc
                 // this is actually where the function is called
                 auto& pcmd = _registers[funcname];
                 json& args = received["args"];
-                int id = received["id"];
+                int id = 0;
+                if (received.contains("id"))
+                    id = received["id"];
 
                 auto async = [&pcmd, args, id]
                 {
