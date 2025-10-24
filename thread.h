@@ -155,6 +155,7 @@ namespace threads
             threads::launch(f);
         }
 
+    bool is_main();
 }
 namespace ml
 {

@@ -8,6 +8,7 @@
 //wrapper for the NetworkManager Dbus Interface.
 //all the fucntions are async except for the properties
 
+//One thing important toknow is that everyone of the callbacks are will be ALWAYS called from the MAIN thread, so you CAN callGUI stuff in it without race condition risks.
 namespace dbus
 {
     namespace nm
@@ -50,12 +51,12 @@ namespace dbus
                 bool prop_bool(const std::string& prop) const;
                 guint8 prop_byte(const std::string& prop) const;
                 std::string path() const {return _path;}
-
         };
 
         class WifiNetwork : public DeviceBase
         {
             public : 
+                WifiNetwork() {}
                 WifiNetwork(const std::string& path);
 
                 //if the ssid is empty, it means that the network is hidden and that to connect to it, you need to know and enter the ssid by your self.
@@ -66,6 +67,8 @@ namespace dbus
 
                 unsigned int frequency() const {return this->prop_ui("Frequency");}
                 std::string readableFrequency() const;
+
+                bool needPassword() const;
         };
 
         class Device: public DeviceBase
@@ -84,7 +87,18 @@ namespace dbus
                 std::string readableState() const;
 
                 //carefull here, if the device is not wifi type, it won't work !
-                void scanNetworks(const std::function<void(ml::Vec<WifiNetwork>&)>& cb);
+                //the device is the device itself, useful if you need to use it to connect it to a network directly in the function for example.
+                void scanNetworks(const std::function<void(Device, ml::Vec<WifiNetwork>&)>& cb);
+                void connect(const WifiNetwork& network, const std::string& password="", const std::function<void()>& cb=nullptr);
+
+                // will disconnect from the current network but let the device enabled
+                void disconnect(const std::function<void(const std::string&)>& cb=nullptr);
+
+                void enable(const std::function<void()>& cb=nullptr);
+                void disable(const std::function<void()>& cb=nullptr);
+
+                //it's a the path of the device string, not a wifi network because it will work for a wire connection too
+                std::string currentConnected() const;
         };
 
         //There is quite a mess of divices types that are not useful for the vast Majority of users.

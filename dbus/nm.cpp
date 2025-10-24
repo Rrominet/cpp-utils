@@ -1,4 +1,7 @@
 #include "./nm.h"
+#include "../thread.h"
+#include <glibmm-2.68/glibmm/variant.h>
+#include <glibmm-2.68/glibmm/variantdbusstring.h>
 
 namespace dbus
 {
@@ -51,11 +54,11 @@ namespace dbus
 
             //like said after, this is sync, this is not ideal but to make it asynck would really mess up the whole thing
             _proxy = Gio::DBus::Proxy::create_for_bus_sync(
-                Gio::DBus::BusType::SYSTEM,
-                "org.freedesktop.NetworkManager",
-                _path,
-                "org.freedesktop.NetworkManager.AccessPoint"
-            );
+                    Gio::DBus::BusType::SYSTEM,
+                    "org.freedesktop.NetworkManager",
+                    _path,
+                    "org.freedesktop.NetworkManager.AccessPoint"
+                    );
         }
 
         std::string WifiNetwork::ssid() const
@@ -78,17 +81,25 @@ namespace dbus
                 return "6Ghz";
         }
 
+        bool WifiNetwork::needPassword() const
+        {
+            auto rsn = this->prop_ui("RsnFlags");
+            auto wpa = this->prop_ui("WpaFlags");
+
+            return (rsn != 0 || wpa != 0);
+        }
+
         Device::Device(const std::string& path)
         {
             _path = path;
 
             //like said after, this is sync, this is not ideal but to make it asynck would really mess up the whole thing
             _proxy = Gio::DBus::Proxy::create_for_bus_sync(
-                Gio::DBus::BusType::SYSTEM,
-                "org.freedesktop.NetworkManager",
-                _path,
-                "org.freedesktop.NetworkManager.Device"
-            );
+                    Gio::DBus::BusType::SYSTEM,
+                    "org.freedesktop.NetworkManager",
+                    _path,
+                    "org.freedesktop.NetworkManager.Device"
+                    );
         }
 
         DeviceType Device::type() const
@@ -101,16 +112,21 @@ namespace dbus
             else
                 return DeviceType::OTHER;
         }
-        void Device::scanNetworks(const std::function<void(ml::Vec<WifiNetwork>&)>& cb)
+        void Device::scanNetworks(const std::function<void(Device, ml::Vec<WifiNetwork>&)>& cb)
         {
             if (this->type() != DeviceType::WIFI)
                 throw std::runtime_error("This device " + this->interface() + " is not a wifi device.\nIts type is " + this->readableType());
-
-            auto onres = [cb](Glib::RefPtr<Gio::AsyncResult>& result)
+            auto this_cp = *this;
+            auto onres = [this_cp, cb](Glib::RefPtr<Gio::AsyncResult>& result)
             {
+
+                assert(threads::is_main() && "proxy::create_for_bus(...) callback : This should be on the main thread, if not there is something wrong with glib async system.");
+
                 auto proxy = Gio::DBus::Proxy::create_for_bus_finish(result);
-                auto oncalled = [cb, proxy](Glib::RefPtr<Gio::AsyncResult>& result)
+                auto oncalled = [this_cp, cb, proxy](Glib::RefPtr<Gio::AsyncResult>& result)
                 {
+                    assert(threads::is_main() && "Proxy->call(...) callback : This should be on the main thread, if not there is something wrong with glib async system.");
+
                     auto res = proxy->call_finish(result);
                     auto outer = Glib::VariantBase::cast_dynamic<Glib::VariantContainerBase>(res);
                     auto aps_variant = Glib::VariantBase::cast_dynamic<Glib::Variant<std::vector<Glib::DBusObjectPathString>>>(outer.get_child(0));
@@ -122,19 +138,19 @@ namespace dbus
                         auto ap = WifiNetwork(path);
                         networks.push_back(ap);
                     }
-                    cb(networks);
+                    cb(this_cp, networks);
                 };
 
                 proxy->call("GetAllAccessPoints", oncalled);
             };
 
             Gio::DBus::Proxy::create_for_bus(
-                Gio::DBus::BusType::SYSTEM,
-                "org.freedesktop.NetworkManager",
-                this->path(),
-                "org.freedesktop.NetworkManager.Device.Wireless",
-                onres
-            );
+                    Gio::DBus::BusType::SYSTEM,
+                    "org.freedesktop.NetworkManager",
+                    this->path(),
+                    "org.freedesktop.NetworkManager.Device.Wireless",
+                    onres
+                    );
         }
 
         std::string Device::readableState() const
@@ -180,15 +196,158 @@ namespace dbus
                 return "Unknown";
         }
 
+        Glib::VariantBase build_connection_settings(
+                const std::map<Glib::ustring, std::map<Glib::ustring, Glib::VariantBase>>& settings) 
+        {
+            // Create the properly nested type: map<string, map<string, variant>>
+            using InnerDict = std::map<Glib::ustring, Glib::VariantBase>;
+            using OuterDict = std::map<Glib::ustring, InnerDict>;
+
+            return Glib::Variant<OuterDict>::create(settings);
+        }
+
+        void Device::connect(const WifiNetwork& network, const std::string& password, const std::function<void()>& cb)
+        {
+            // Build connection settings
+            Glib::VariantContainerBase connection_settings;
+
+            std::map<Glib::ustring, std::map<Glib::ustring, Glib::VariantBase>> settings;
+
+            // Connection section
+            settings["connection"]["type"] = Glib::Variant<Glib::ustring>::create("802-11-wireless");
+            settings["connection"]["id"] = Glib::Variant<Glib::ustring>::create("MyConnection");
+            settings["connection"]["uuid"] = Glib::Variant<Glib::ustring>::create(Glib::ustring(g_uuid_string_random()));
+
+            // WiFi section
+            std::vector<guint8> ssid_bytes;
+            for (char c : network.ssid())
+                ssid_bytes.push_back(c);
+
+            settings["802-11-wireless"]["ssid"] = Glib::Variant<std::vector<guint8>>::create(ssid_bytes);
+            settings["802-11-wireless"]["mode"] = Glib::Variant<Glib::ustring>::create("infrastructure");
+
+            // If secured, add security section
+            if(network.needPassword()) {
+                settings["802-11-wireless-security"]["key-mgmt"] = Glib::Variant<Glib::ustring>::create("wpa-psk");
+                settings["802-11-wireless-security"]["psk"] = Glib::Variant<Glib::ustring>::create(password);
+            }
+
+            // IP settings
+            settings["ipv4"]["method"] = Glib::Variant<Glib::ustring>::create("auto");
+            settings["ipv6"]["method"] = Glib::Variant<Glib::ustring>::create("auto");
+
+            // Now convert this clusterfuck to the right variant type (a{sa{sv}})
+            // This is the annoying part with glibmm...
+
+
+            auto& pth = _path;
+            auto onproxy_res = [pth, network, settings, cb](Glib::RefPtr<Gio::AsyncResult>& result)
+            {
+                auto nm_proxy = Gio::DBus::Proxy::create_for_bus_finish(result);
+                auto onconnec_res = [nm_proxy, cb](Glib::RefPtr<Gio::AsyncResult>& result)
+                {
+                    auto res = nm_proxy->call_finish(result);
+                    cb();
+                };
+
+                // Call AddAndActivateConnection
+                std::vector<Glib::VariantBase> tpl;
+                tpl.push_back(build_connection_settings(settings));
+                tpl.push_back(Glib::Variant<Glib::DBusObjectPathString>::create(pth));
+                tpl.push_back(Glib::Variant<Glib::DBusObjectPathString>::create(network.path()));
+                auto params = Glib::VariantContainerBase::create_tuple(tpl);
+                nm_proxy->call(
+                        "AddAndActivateConnection",
+                        onconnec_res,
+                        params);
+            };
+
+            Gio::DBus::Proxy::create_for_bus(
+                    Gio::DBus::BusType::SYSTEM,
+                    "org.freedesktop.NetworkManager",
+                    "/org/freedesktop/NetworkManager",
+                    "org.freedesktop.NetworkManager",
+                    onproxy_res
+                    );
+        }
+
+        void Device::disconnect(const std::function<void(const std::string&)>& cb)
+        {
+            std::string path;
+            try
+            {
+                path = this->currentConnected();
+            }
+            catch(const std::exception& e)
+            {
+                cb("Device " + this->interface() + " is already disconnected : \n" + std::string(e.what()));
+                return;
+            }
+            
+            auto onproxy_res = [path, cb](Glib::RefPtr<Gio::AsyncResult>& result)
+            {
+                auto nm_proxy = Gio::DBus::Proxy::create_for_bus_finish(result);
+                auto ondisc = [nm_proxy, cb, path](Glib::RefPtr<Gio::AsyncResult>& result)
+                {
+                    auto res = nm_proxy->call_finish(result);
+                    cb("Disconnected from " + path);
+                };
+
+                // Call RemoveConnection
+                nm_proxy->call(
+                        "DeacticateConnection",
+                        ondisc,
+                        Glib::VariantContainerBase::create_tuple({
+                    Glib::Variant<Glib::DBusObjectPathString>::create(path)
+                }));
+            };
+
+            Gio::DBus::Proxy::create_for_bus(
+                    Gio::DBus::BusType::SYSTEM,
+                    "org.freedesktop.NetworkManager",
+                    "/org/freedesktop/NetworkManager",
+                    "org.freedesktop.NetworkManager",
+                    onproxy_res
+                    );
+
+        }
+
+        void Device::enable(const std::function<void()>& cb)
+        {
+            if (this->type() != DeviceType::WIFI)
+                throw std::runtime_error("Device " + this->interface() + " is not a wifi device");
+        }
+
+        void Device::disable(const std::function<void()>& cb)
+        {
+
+        }
+
+        WifiNetwork Device::currentConnected() const
+        {
+            if (this->state() != ACTIVATED)
+                throw std::runtime_error("Device " + this->interface() + " is not activated (or not connected to any network)");
+
+            if (this->type() != DeviceType::WIFI)
+                throw std::runtime_error("Device " + this->interface() + " is not a wifi device");
+
+            auto active_path = this->prop_s("ActiveConnection");
+            if (active_path == "" || active_path == "/")
+                throw std::runtime_error("Device " + this->interface() + " is not connected to a network");
+
+            return active_path;
+        }
 
         void all_devices(const std::function<void(ml::Vec<Device>&)>& cb, bool filterOnlyWifiEth)
         {
             init();
             auto onres = [cb, filterOnlyWifiEth](Glib::RefPtr<Gio::AsyncResult>& result)
             {
+                assert(threads::is_main() && "proxy::create_for_bus(...) callback : This should be on the main thread, if not there is something wrong with glib async system.");
                 auto proxy = Gio::DBus::Proxy::create_for_bus_finish(result);
                 auto oncalled = [cb, filterOnlyWifiEth, proxy](Glib::RefPtr<Gio::AsyncResult>& result)
                 {
+                    assert(threads::is_main() && "Proxy->call(GetDevices) callback : This should be on the main thread, if not there is something wrong with glib async system.");
                     ml::Vec<Device> devices;
 
                     auto tuple = proxy->call_finish(result);

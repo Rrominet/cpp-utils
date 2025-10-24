@@ -4,6 +4,17 @@
 #include <random>
 #include <sstream>
 
+namespace threads
+{
+    std::thread::id _main_id = std::this_thread::get_id();
+    bool is_main()
+    {
+        auto cr = std::this_thread::get_id();
+        lg("Main Thread ID : " << _main_id << " and Current Thread ID : " << cr);
+        return cr == threads::_main_id;
+    }
+}
+
 void th::ThreadPool::threadRun()
 {
     while(true) 
