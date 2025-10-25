@@ -104,5 +104,8 @@ namespace dbus
         //There is quite a mess of divices types that are not useful for the vast Majority of users.
         //filterOnlyWifiEth filters out all devices that are not wifi or ethernet
         void all_devices(const std::function<void(ml::Vec<Device>&)>& cb, bool filterOnlyWifiEth=true);
+        void enable_wifi(const std::function<void()>& cb);
+        void disable_wifi(const std::function<void()>& cb);
+        void wifi_enabled(const std::function<void(bool)>& cb);
     }
 }

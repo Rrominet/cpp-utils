@@ -312,18 +312,7 @@ namespace dbus
 
         }
 
-        void Device::enable(const std::function<void()>& cb)
-        {
-            if (this->type() != DeviceType::WIFI)
-                throw std::runtime_error("Device " + this->interface() + " is not a wifi device");
-        }
-
-        void Device::disable(const std::function<void()>& cb)
-        {
-
-        }
-
-        WifiNetwork Device::currentConnected() const
+        std::string Device::currentConnected() const
         {
             if (this->state() != ACTIVATED)
                 throw std::runtime_error("Device " + this->interface() + " is not activated (or not connected to any network)");
@@ -370,6 +359,73 @@ namespace dbus
                 };
 
                 proxy->call("GetDevices", oncalled);
+            };
+
+            Gio::DBus::Proxy::create_for_bus(
+                    Gio::DBus::BusType::SYSTEM,
+                    "org.freedesktop.NetworkManager",
+                    "/org/freedesktop/NetworkManager",
+                    "org.freedesktop.NetworkManager",
+                    onres
+                    );
+        }
+
+        void setWifi(bool value, const std::function<void ()>& cb)
+        {
+            init();
+            auto onres = [cb, value](Glib::RefPtr<Gio::AsyncResult>& result)
+            {
+                auto proxy = Gio::DBus::Proxy::create_for_bus_finish(result);
+                auto oncalled = [cb, proxy, value](Glib::RefPtr<Gio::AsyncResult>& result)
+                {
+                    proxy->call_finish(result);
+                    cb();
+                };
+
+            // Create the variant properly - Properties.Set needs signature "ssv"
+                auto params = Glib::VariantContainerBase::create_tuple({
+                    Glib::Variant<Glib::ustring>::create("org.freedesktop.NetworkManager"),
+                    Glib::Variant<Glib::ustring>::create("WirelessEnabled"),
+                    Glib::Variant<Glib::VariantBase>::create(Glib::Variant<bool>::create(value))
+                });
+                
+                proxy->call("org.freedesktop.DBus.Properties.Set",
+                        oncalled,
+                        params
+                        );
+
+            };
+
+
+            Gio::DBus::Proxy::create_for_bus(
+                    Gio::DBus::BusType::SYSTEM,
+                    "org.freedesktop.NetworkManager",
+                    "/org/freedesktop/NetworkManager",
+                    "org.freedesktop.NetworkManager",
+                    onres
+                    );
+        }
+
+        void enable_wifi(const std::function<void()>& cb)
+        {
+            setWifi(true, cb);
+        }
+
+        void disable_wifi(const std::function<void()>& cb)
+        {
+            setWifi(false, cb);
+        }
+
+        void wifi_enabled(const std::function<void(bool)>& cb)
+        {
+            init();
+            auto onres = [cb](Glib::RefPtr<Gio::AsyncResult>& result)
+            {
+                auto proxy = Gio::DBus::Proxy::create_for_bus_finish(result);
+
+                Glib::VariantBase prop_variant;
+                proxy->get_cached_property(prop_variant, "WirelessEnabled");
+                cb(Glib::VariantBase::cast_dynamic<Glib::Variant<bool>>(prop_variant).get());
             };
 
             Gio::DBus::Proxy::create_for_bus(
