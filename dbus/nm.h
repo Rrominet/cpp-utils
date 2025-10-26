@@ -74,6 +74,7 @@ namespace dbus
         class Device: public DeviceBase
         {
             public : 
+                Device() {}
                 Device(const std::string& path);
                 std::string interface() const {return this->prop_s("Interface");}
                 unsigned int deviceType() const {return this->prop_ui("DeviceType");}
