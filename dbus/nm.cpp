@@ -2,6 +2,7 @@
 #include "../thread.h"
 #include <glibmm-2.68/glibmm/variant.h>
 #include <glibmm-2.68/glibmm/variantdbusstring.h>
+#include "../str.h"
 
 namespace dbus
 {
@@ -47,27 +48,47 @@ namespace dbus
         }
 
 
-        WifiNetwork::WifiNetwork(const std::string& path)
+        WifiNetwork::WifiNetwork(const std::string& path, const std::string& dbusPath)
         {
-
+            lg("a");
             _path = path;
+            _dbuspath = dbusPath;
+            lg("a");
 
             //like said after, this is sync, this is not ideal but to make it asynck would really mess up the whole thing
             _proxy = Gio::DBus::Proxy::create_for_bus_sync(
                     Gio::DBus::BusType::SYSTEM,
                     "org.freedesktop.NetworkManager",
                     _path,
-                    "org.freedesktop.NetworkManager.AccessPoint"
+                    _dbuspath
                     );
+            lg("a");
+            lg(_proxy.get());
         }
 
         std::string WifiNetwork::ssid() const
         {
-
-            Glib::VariantBase ssid_var;
-            _proxy->get_cached_property(ssid_var, "Ssid");
-            auto ssid_bytes = Glib::VariantBase::cast_dynamic<Glib::Variant<std::vector<guint8>>>(ssid_var).get();
-            return std::string(ssid_bytes.begin(), ssid_bytes.end());
+            lg("a");
+            std::string propname = "Ssid";
+            lg("a");
+            if (str::contains(_dbuspath, "Active"))
+            {
+            lg("a");
+                propname = "Id";
+            lg("a");
+                return this->prop_s(propname);
+            }
+            else 
+            {
+            lg("a");
+                Glib::VariantBase ssid_var;
+            lg("a");
+                _proxy->get_cached_property(ssid_var, propname);
+            lg("a");
+                auto ssid_bytes = Glib::VariantBase::cast_dynamic<Glib::Variant<std::vector<guint8>>>(ssid_var).get();
+            lg("a");
+                return std::string(ssid_bytes.begin(), ssid_bytes.end());
+            }
         }
 
         std::string WifiNetwork::readableFrequency() const
@@ -112,7 +133,54 @@ namespace dbus
             else
                 return DeviceType::OTHER;
         }
+
         void Device::scanNetworks(const std::function<void(Device, ml::Vec<WifiNetwork>&)>& cb)
+        {
+            if (this->type() != DeviceType::WIFI)
+                throw std::runtime_error("This device " + this->interface() + " is not a wifi device.\nIts type is " + this->readableType());
+            auto this_cp = *this;
+            auto onres = [this_cp, cb](Glib::RefPtr<Gio::AsyncResult>& result)
+            {
+
+                assert(threads::is_main() && "proxy::create_for_bus(...) callback : This should be on the main thread, if not there is something wrong with glib async system.");
+
+                auto proxy = Gio::DBus::Proxy::create_for_bus_finish(result);
+                auto oncalled = [this_cp, cb, proxy](Glib::RefPtr<Gio::AsyncResult>& result)
+                {
+                    assert(threads::is_main() && "Proxy->call(...) callback : This should be on the main thread, if not there is something wrong with glib async system.");
+
+                    auto res = proxy->call_finish(result);
+                    auto outer = Glib::VariantBase::cast_dynamic<Glib::VariantContainerBase>(res);
+                    auto aps_variant = Glib::VariantBase::cast_dynamic<Glib::Variant<std::vector<Glib::DBusObjectPathString>>>(outer.get_child(0));
+
+                    std::vector<Glib::DBusObjectPathString> ap_paths = aps_variant.get();
+                    ml::Vec<WifiNetwork> networks;
+                    for (auto& path : ap_paths)
+                    {
+                        auto ap = WifiNetwork(path);
+                        networks.push_back(ap);
+                    }
+                    cb(this_cp, networks);
+                };
+
+                auto onscan_called = [](Glib::RefPtr<Gio::AsyncResult>& result){};
+
+                proxy->call("RequestScan", onscan_called, Glib::VariantContainerBase::create_tuple({
+                    Glib::Variant<std::map<Glib::ustring, Glib::VariantBase>>::create({})
+                }));
+                proxy->call("GetAllAccessPoints", oncalled);
+            };
+
+            Gio::DBus::Proxy::create_for_bus(
+                    Gio::DBus::BusType::SYSTEM,
+                    "org.freedesktop.NetworkManager",
+                    this->path(),
+                    "org.freedesktop.NetworkManager.Device.Wireless",
+                    onres
+                    );
+        }
+
+        void Device::networks(const std::function<void(Device, ml::Vec<WifiNetwork>&)>& cb)
         {
             if (this->type() != DeviceType::WIFI)
                 throw std::runtime_error("This device " + this->interface() + " is not a wifi device.\nIts type is " + this->readableType());
@@ -165,7 +233,7 @@ namespace dbus
                 case UNAVAILABLE: 
                     return "Connection Unavailable";
                 case DISCONNECTED: 
-                    return "The device is disconected.";
+                    return "The device is disconnected.";
                 case PREPARE: 
                     return "Preparing the connection...";
                 case CONFIG: 
@@ -215,7 +283,7 @@ namespace dbus
 
             // Connection section
             settings["connection"]["type"] = Glib::Variant<Glib::ustring>::create("802-11-wireless");
-            settings["connection"]["id"] = Glib::Variant<Glib::ustring>::create("MyConnection");
+            settings["connection"]["id"] = Glib::Variant<Glib::ustring>::create(network.ssid());
             settings["connection"]["uuid"] = Glib::Variant<Glib::ustring>::create(Glib::ustring(g_uuid_string_random()));
 
             // WiFi section
@@ -295,7 +363,7 @@ namespace dbus
 
                 // Call RemoveConnection
                 nm_proxy->call(
-                        "DeacticateConnection",
+                        "DeactivateConnection", //changed
                         ondisc,
                         Glib::VariantContainerBase::create_tuple({
                     Glib::Variant<Glib::DBusObjectPathString>::create(path)

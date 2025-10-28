@@ -55,9 +55,13 @@ namespace dbus
 
         class WifiNetwork : public DeviceBase
         {
+            private: 
+                std::string _dbuspath;
             public : 
                 WifiNetwork() {}
-                WifiNetwork(const std::string& path);
+
+                //dbuspath, could be org.freedesktop.NetworkManager.AccessPoint or org.freedesktop.NetworkManager.Connection.Active
+                WifiNetwork(const std::string& path, const std::string& dbusPath="org.freedesktop.NetworkManager.AccessPoint");
 
                 //if the ssid is empty, it means that the network is hidden and that to connect to it, you need to know and enter the ssid by your self.
                 std::string ssid() const;
@@ -90,6 +94,7 @@ namespace dbus
                 //carefull here, if the device is not wifi type, it won't work !
                 //the device is the device itself, useful if you need to use it to connect it to a network directly in the function for example.
                 void scanNetworks(const std::function<void(Device, ml::Vec<WifiNetwork>&)>& cb);
+                void networks(const std::function<void(Device, ml::Vec<WifiNetwork>&)>& cb);
                 void connect(const WifiNetwork& network, const std::string& password="", const std::function<void()>& cb=nullptr);
 
                 // will disconnect from the current network but let the device enabled
