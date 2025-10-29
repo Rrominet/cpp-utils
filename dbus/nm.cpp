@@ -50,10 +50,8 @@ namespace dbus
 
         WifiNetwork::WifiNetwork(const std::string& path, const std::string& dbusPath)
         {
-            lg("a");
             _path = path;
             _dbuspath = dbusPath;
-            lg("a");
 
             //like said after, this is sync, this is not ideal but to make it asynck would really mess up the whole thing
             _proxy = Gio::DBus::Proxy::create_for_bus_sync(
@@ -62,31 +60,22 @@ namespace dbus
                     _path,
                     _dbuspath
                     );
-            lg("a");
             lg(_proxy.get());
         }
 
         std::string WifiNetwork::ssid() const
         {
-            lg("a");
             std::string propname = "Ssid";
-            lg("a");
             if (str::contains(_dbuspath, "Active"))
             {
-            lg("a");
                 propname = "Id";
-            lg("a");
                 return this->prop_s(propname);
             }
             else 
             {
-            lg("a");
                 Glib::VariantBase ssid_var;
-            lg("a");
                 _proxy->get_cached_property(ssid_var, propname);
-            lg("a");
                 auto ssid_bytes = Glib::VariantBase::cast_dynamic<Glib::Variant<std::vector<guint8>>>(ssid_var).get();
-            lg("a");
                 return std::string(ssid_bytes.begin(), ssid_bytes.end());
             }
         }
@@ -274,7 +263,7 @@ namespace dbus
             return Glib::Variant<OuterDict>::create(settings);
         }
 
-        void Device::connect(const WifiNetwork& network, const std::string& password, const std::function<void()>& cb)
+        void Device::connect(const WifiNetwork& network, const std::string& password, const std::function<void()>& cb, const std::function<void(const std::string&)>& error)
         {
             // Build connection settings
             Glib::VariantContainerBase connection_settings;
@@ -309,13 +298,23 @@ namespace dbus
 
 
             auto& pth = _path;
-            auto onproxy_res = [pth, network, settings, cb](Glib::RefPtr<Gio::AsyncResult>& result)
+            auto onproxy_res = [pth, network, settings, cb, error](Glib::RefPtr<Gio::AsyncResult>& result)
             {
                 auto nm_proxy = Gio::DBus::Proxy::create_for_bus_finish(result);
-                auto onconnec_res = [nm_proxy, cb](Glib::RefPtr<Gio::AsyncResult>& result)
+                auto onconnec_res = [nm_proxy, cb, error](Glib::RefPtr<Gio::AsyncResult>& result)
                 {
-                    auto res = nm_proxy->call_finish(result);
-                    cb();
+                    try
+                    {
+                        auto res = nm_proxy->call_finish(result);
+                        if (cb)
+                            cb();
+                    }
+                    catch(const std::exception& e)
+                    {
+                        lg(e.what());
+                        if (error)
+                            error("Couldn't connect to network : \n" + _S e.what());
+                    }
                 };
 
                 // Call AddAndActivateConnection

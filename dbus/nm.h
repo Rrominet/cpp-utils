@@ -95,7 +95,7 @@ namespace dbus
                 //the device is the device itself, useful if you need to use it to connect it to a network directly in the function for example.
                 void scanNetworks(const std::function<void(Device, ml::Vec<WifiNetwork>&)>& cb);
                 void networks(const std::function<void(Device, ml::Vec<WifiNetwork>&)>& cb);
-                void connect(const WifiNetwork& network, const std::string& password="", const std::function<void()>& cb=nullptr);
+                void connect(const WifiNetwork& network, const std::string& password="", const std::function<void()>& cb=nullptr, const std::function<void(const std::string&)>& error=nullptr);
 
                 // will disconnect from the current network but let the device enabled
                 void disconnect(const std::function<void(const std::string&)>& cb=nullptr);
