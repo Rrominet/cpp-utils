@@ -18,9 +18,6 @@ def main():
     path = "/usr/local/lib/libmlapi.so"
 
 
-    # install deps
-    run("apt install -y build-essential git gcc g++ wget zip unzip libboost-all-dev")
-
     # clone py-utils
     os.chdir("..")
     if os.path.isdir("py-utils"):
@@ -32,6 +29,10 @@ def main():
     run("./install")
     os.chdir("..")
     shutil.rmtree("py-utils")
+
+    # install deps
+    from ml import packages
+    packages.install(["gcc", "g++", "wget", "zip", "unzip", "libboost-all-dev", "make", "libc6-dev"])
 
     # cpp-utils_dependencies
     if os.path.isdir("cpp-utils_dependencies"):

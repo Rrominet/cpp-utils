@@ -29,10 +29,9 @@ sudo chmod +x ./build-n-install
 sudo ./build-n-install
 ```
 
-> [!WARNING]
-> In the `build-n-install` script, it install some dependencies with `apt`.  
-> BUT if you are on a non-debian system, it won't work.  
-> In that case, just adabt the first line of the script `sudo apt install ...` to your system's package manager.  
+> [!NOTE]
+> The script should install all the packages needed for the compilation process for any major distros.  
+> If you have an error, install the packages manually.
 > FYI, here are the libs installed by the script :   
 > `build-essential` `git` `gcc` `g++` `wget` `zip` `unzip` `libboost-all-dev`
 
