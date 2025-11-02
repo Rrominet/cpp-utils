@@ -81,6 +81,12 @@ namespace files
     size_t size(const std::string& path);
     std::string readable_size(size_t size, int round=2);
 
+    size_t write(const std::string& path, const std::vector<unsigned char>& content, int flags, int permissions=0666);
+    size_t write(const std::string& path, void* content, size_t size, int flags, int permissions=0666);
+
+    size_t write(const std::string& path, const std::vector<unsigned char>& content, int permissions=0666);
+    size_t write(const std::string& path, void* content, size_t size, int permissions=0666);
+
     std::vector<unsigned char> bContent(const std::string& path);
 
     std::vector<std::string> ls(const std::string& path, SortType sort = NAME, bool onlyFilename=false);

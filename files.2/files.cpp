@@ -447,6 +447,67 @@ namespace files
     size_t write(const std::string& path, const std::string& content, int permissions){return files::write(path, content, O_WRONLY | O_CREAT, permissions);}
     size_t append(const std::string& path, const std::string& content){return files::write(path, content, O_WRONLY | O_APPEND | O_CREAT, 0666);}
 
+    size_t write(const std::string& path, const std::vector<unsigned char>& content, int flags, int permissions)
+    {
+               int fd = open(path.c_str(), flags , permissions);
+        if (fd < 0)
+        {
+            int errnum = errno;
+            throw std::runtime_error("Unable to open file " + path + " to write in it : " + std::strerror(errnum));
+        }
+        // If the file is not opened in append mode, truncate it
+        if (!(flags & O_APPEND)) 
+        {
+            if (ftruncate(fd, 0) < 0) {
+                close(fd);
+                throw std::runtime_error("Unable to truncate file " + path + ": " + std::strerror(errno));
+            }
+        }
+
+        auto written = ::write(fd, &content, content.size());
+        if (written < 0)
+        {
+            close(fd);
+            throw std::runtime_error("Unable to write in file " + path);
+        }
+
+        close(fd);
+
+        return written;
+
+    }
+
+    size_t write(const std::string& path, void* content, size_t size, int flags, int permissions)
+    {
+       int fd = open(path.c_str(), flags , permissions);
+        if (fd < 0)
+        {
+            int errnum = errno;
+            throw std::runtime_error("Unable to open file " + path + " to write in it : " + std::strerror(errnum));
+        }
+        // If the file is not opened in append mode, truncate it
+        if (!(flags & O_APPEND)) 
+        {
+            if (ftruncate(fd, 0) < 0) {
+                close(fd);
+                throw std::runtime_error("Unable to truncate file " + path + ": " + std::strerror(errno));
+            }
+        }
+
+        auto written = ::write(fd, content, size);
+        if (written < 0)
+        {
+            close(fd);
+            throw std::runtime_error("Unable to write in file " + path);
+        }
+
+        close(fd);
+        return written;
+    }
+
+size_t write(const std::string& path, const std::vector<unsigned char>& content, int permissions){return files::write(path, content, O_WRONLY | O_CREAT, permissions);}
+size_t write(const std::string& path, void* content, size_t size, int permissions){return files::write(path, content, size, O_WRONLY | O_CREAT, permissions);}
+
     size_t size(const std::string& path)
     {
         if (files::isSymbolic(path))

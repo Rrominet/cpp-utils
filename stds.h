@@ -4,6 +4,10 @@
 
 namespace stds
 {
+    // mendatory and need to be called before anything
+    // can be called several times, the nitialisation will be done only the first
+    void init();
+
     // newLine is executed each time a new line is read from stdin (the argument is the last line)
     //newLine will be executed with empty string if you use a custom eventd writing in efd()...
     void read_in(const std::function<void(const std::string&)> &newLine);

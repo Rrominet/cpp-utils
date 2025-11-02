@@ -6,6 +6,7 @@
 
 
 #ifdef mlipc
+#include "../stds.h"
 #include "../ipc.h"
 #endif
 
@@ -24,15 +25,16 @@ namespace ml
             FileObject() = default;
             virtual ~FileObject() = default;
 
-            void* data() {return _data;}
-            size_t size() {return _size;}
-
             std::string asString() const;
-            std::vector<char> asVector() const;
+            std::vector<unsigned char> asVector() const;
+
+            // the set function COPY the data, it's not a pointer and it's mendatory to work.
+            void set(void* data, size_t size);
+            void set(const std::string& str);
+            void set(const std::vector<unsigned char>& vec);
 
         protected : 
-            void* _data = nullptr;
-            size_t _size = 0;
+            std::vector<unsigned char> _buffer;
     };
 
     class AsyncFilesystem
@@ -41,18 +43,20 @@ namespace ml
             AsyncFilesystem(const std::string& root);
             virtual ~AsyncFilesystem() = default;
 
-            void write(const std::string& path, const std::string& content, const std::function<void (size_t written)>& callback=0, const std::function<void ()>& error=0);
-            void write(const std::string& path, const std::vector<char>& content, const std::function<void (size_t written)>& callback=0, const std::function<void ()>& error=0);
-            void write(const std::string& path, void* content, size_t size, const std::function<void (size_t written)>& callback=0, const std::function<void ()>& error=0);
+            void write(const std::string& path, const std::string& content, const std::function<void (size_t written)>& callback=0, const std::function<void (const std::string&)>& error=0);
+            void write(const std::string& path, const std::vector<unsigned char>& content, const std::function<void (size_t written)>& callback=0, const std::function<void (const std::string&)>& error=0);
+            void write(const std::string& path, void* content, size_t size, const std::function<void (size_t written)>& callback=0, const std::function<void (const std::string&)>& error=0);
 
             Ret<size_t> write_sync(const std::string& path, const std::string& content);
-            Ret<size_t> write_sync(const std::string& path, const std::vector<char>& content);
+            Ret<size_t> write_sync(const std::string& path, const std::vector<unsigned char>& content);
             Ret<size_t> write_sync(const std::string& path, void* content, size_t size);
 
             //the callback will be called on the same thread as the caller.
             //So it's usable in a GUI application without needing to doing the queuing yourself.
-            void read(const std::string& path, const std::function<void (std::string)>& callback=0, const std::function<void ()>& error=0);
+            void read(const std::string& path, const std::function<void (std::string)>& callback=0, const std::function<void (const std::string&)>& error=0);
+            void read(const std::string& path, const std::function<void (const std::vector<unsigned char>&)>& callback=0, const std::function<void (const std::string&)>& error=0);
             Ret<std::string> read_sync(const std::string& path);
+            Ret<std::vector<unsigned char>> readb_sync(const std::string& path);
 
 
 #ifdef mlipc
@@ -60,6 +64,7 @@ namespace ml
             //you need to define mlipc before including this file.
         void setForIPC()
         {
+            stds::init();
             _pool.setWakeupFunc(ipc::signal);
             ipc::addOnReadLoop([this](){_pool.processCallbacks();});
         }
@@ -74,6 +79,8 @@ namespace ml
             }
 
             th::ThreadPool& pool() {return _pool;}
+            std::string root() {return _root;}
+            std::string fullpath(const std::string& path);
 
         protected:
             std::string _root;
@@ -81,5 +88,13 @@ namespace ml
 
             // the filepath key is from the root
             std::unordered_map<std::string, FileObject> _cache;
+            std::mutex _cache_mtx;
+
+            std::vector<std::string> _beingWritten;
+            std::mutex _beingWritten_mtx;
+
+            void _pushData(const std::string& path, const std::string& data);
+            void _pushData(const std::string& path, const std::vector<unsigned char>& data);
+            void _pushData(const std::string& path, void* content, size_t size);
     };
 }

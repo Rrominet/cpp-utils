@@ -242,66 +242,69 @@ namespace ipc
         auto f = [](const std::string& line)
         {
             lg("received a new line in stdin for ipc, lets go...");
-            json received;
-            try
+            if (!line.empty())
             {
-                received = json::parse(line);
-            }
-            catch (const std::exception& e)
-            {
-                lg("can't parse the request in json for ipc : " << e.what());
-                return;
-            }
-
-            std::string funcname;
-
-            try
-            {
-                funcname = received.at("function");
-            }
-            catch (const std::exception& e)
-            {
-                lg("no key 'function' in the request for ipc : " << e.what());
-                return;
-            }
-
-            std::lock_guard<std::mutex> l(_registersMtx);
-            if (_registers.find(funcname) != _registers.end())
-            {
-                lg("found function to call : " << funcname);
-                // this is actually where the function is called
-                auto& pcmd = _registers[funcname];
-                json& args = received["args"];
-                int id = 0;
-                if (received.contains("id"))
-                    id = received["id"];
-
-                auto async = [&pcmd, args, id]
+                json received;
+                try
                 {
+                    received = json::parse(line);
+                }
+                catch (const std::exception& e)
+                {
+                    lg("can't parse the request in json for ipc : " << e.what());
+                    return;
+                }
+
+                std::string funcname;
+
+                try
+                {
+                    funcname = received.at("function");
+                }
+                catch (const std::exception& e)
+                {
+                    lg("no key 'function' in the request for ipc : " << e.what());
+                    return;
+                }
+
+                std::lock_guard<std::mutex> l(_registersMtx);
+                if (_registers.find(funcname) != _registers.end())
+                {
+                    lg("found function to call : " << funcname);
+                    // this is actually where the function is called
+                    auto& pcmd = _registers[funcname];
+                    json& args = received["args"];
+                    int id = 0;
+                    if (received.contains("id"))
+                        id = received["id"];
+
+                    auto async = [&pcmd, args, id]
+                    {
+                        json res = {};
+                        if (pcmd.cb)
+                            res = pcmd.cb(args, id);
+
+                        //used for the caller process to know which request it is responding to
+                        res["id"] = id;
+                        res["type"] = "response"; // could be stream...
+
+                        // send the response via stdout :
+                        std::cout << res.dump() << std::endl;
+                    };
+
+                    std::thread(async).detach();
+                }
+
+                else 
+                {
+                    int id = received["id"];
                     json res = {};
-                    if (pcmd.cb)
-                        res = pcmd.cb(args, id);
-
-                    //used for the caller process to know which request it is responding to
                     res["id"] = id;
-                    res["type"] = "response"; // could be stream...
-
-                    // send the response via stdout :
+                    res["type"] = "response";
+                    res["message"] = "function not found : " + funcname;
+                    res["success"] = false;
                     std::cout << res.dump() << std::endl;
-                };
-
-                std::thread(async).detach();
-            }
-
-            else 
-            {
-                int id = received["id"];
-                json res = {};
-                res["id"] = id;
-                res["type"] = "response";
-                res["message"] = "function not found : " + funcname;
-                res["success"] = false;
-                std::cout << res.dump() << std::endl;
+                }
             }
 
             std::vector<std::function<void()>> cbs;
@@ -310,7 +313,6 @@ namespace ipc
                 cbs = _additianalCallbacks;
             }
             
-            lg("Executing " << cbs.size() << " additional callbacks.");
             for (const auto& cb : cbs)
                 cb();
         };

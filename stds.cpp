@@ -12,6 +12,7 @@ namespace stds
 {
     int _efd = -1;
     struct pollfd _fds[2];
+    bool _init = false;
     // newLine is executed each time a new line is read from stdin (the argument is the last line)
     //
     //
@@ -20,12 +21,32 @@ namespace stds
         return _efd;
     }
 
-    void read_in(const std::function<void(const std::string&)> &newLine)
+    void init()
     {
+        if (_init)
+            return;
+        
+// The first argument is the initial counter value (0 is fine). The flags are:
+// - `EFD_NONBLOCK`: makes reads/writes non-blocking
+// - `EFD_CLOEXEC`: closes the fd automatically on exec calls
+        _efd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
+        if (_efd == -1)
+        {
+            perror("eventfd");
+            assert(false && "Can't create eventfd.");
+        }
         _fds[0].fd = STDIN_FILENO;
         _fds[0].events = POLLIN;
         _fds[1].fd = _efd;
         _fds[1].events = POLLIN;
+
+        _init = true;
+    }
+        
+
+    void read_in(const std::function<void(const std::string&)> &newLine)
+    {
+        assert(_init && "You need to call init before using read_in");
 
         std::string line;
         while (true)
