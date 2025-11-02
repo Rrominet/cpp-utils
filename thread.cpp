@@ -25,13 +25,16 @@ void th::ThreadPool::threadRun()
             _qcond.wait(lk, [this]{
                     return !_jobs.empty() || _shouldStop;
                     });
+            lg("threads woke up !");
             if (_shouldStop)
                 return;
 
+            lg("getting job");
             job = _jobs.front();
             _jobs.pop();
         }
         _running ++;
+            lg("running job");
         job();
         _running --;
     }
@@ -53,11 +56,38 @@ th::ThreadPool::~ThreadPool()
     this->stop();
 }
 
-void th::ThreadPool::run(const std::function<void ()> &f)
+void th::ThreadPool::run(const std::function<void ()> &f, const std::function<void ()> &callback)
 {
     lg("ThreadPool::run");
-    _jobs.push(f);
+    auto thfunc = [this, f, callback]
+    {
+        f();
+        {
+            std::lock_guard<std::mutex> lk(_cb_mtx);
+            _callbacks.push_back(callback);
+        }
+
+        {
+            std::lock_guard lk(_wakeupFuncMtx);
+            if (_wakeupFunc)
+            {
+                lg("running wakeup event loop func.");
+                _wakeupFunc();
+            }
+        }
+    };
+    _jobs.push(thfunc);
+    lg("job pushed.");
     _qcond.notify_one();
+    lg("threads notified.");
+}
+
+void th::ThreadPool::setWakeupFunc(const std::function<void ()> &f)
+{
+    {
+        std::lock_guard lk(_wakeupFuncMtx);
+        _wakeupFunc = f;
+    }
 }
 
 void th::ThreadPool::stop()
@@ -70,6 +100,17 @@ void th::ThreadPool::stop()
     for (auto& thread : _threads.vec)
         thread.join();
     _threads.clear();
+}
+
+void th::ThreadPool::processCallbacks()
+{
+    std::vector<std::function<void()>> cb;
+    {
+        std::lock_guard<std::mutex> lk(_cb_mtx);
+        cb = _callbacks;
+    }
+    for (auto& callback : cb)
+        callback();
 }
 
 int th::maxRunning()

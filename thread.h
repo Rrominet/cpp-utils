@@ -156,6 +156,15 @@ namespace threads
         }
 
     bool is_main();
+
+    template<typename F, typename ...Args>
+    void run(F f, Args... args)
+    {
+        auto tocall = [=]
+        {
+            f(args...);
+        };
+    }
 }
 namespace ml
 {
@@ -301,14 +310,29 @@ namespace th
             bool _shouldStop = false;
             std::atomic_int _running = 0;
 
+            std::vector<std::function<void()>> _callbacks;
+            std::function<void ()> _wakeupFunc = 0;
+            std::mutex _wakeupFuncMtx;
+            std::mutex _cb_mtx;
+
             void threadRun();
 
         public : 
             ThreadPool(int max = -1);
             ~ThreadPool();
 
-            void run(const std::function<void ()> &f);
+            //the callback will be executed on the ThreadPool thread when calling processCallbacks();
+            //processCallbacks() should be called in you event loop in each pass
+            void run(const std::function<void ()> &f, const std::function<void ()> &callback=0);
             void stop();
+            void processCallbacks();
+
+            //the function passed here will be executed each time a functon is pushed to the _callbacks queue.
+            //You tipicily would use it to signal your event loop to wake up and calling processCallbacks().
+            //In a GUI app, it would be something like processEvents() or queueEvent()...
+            //in mlgui.2, it's simply a call to ml::app()->queue([]{yourpool.processCallbacks();}).
+            //in ipc it would simply a be a call to ipc::signal() and having the pool.processCallbacks() directly in the ipc stdin read loop with ipc::addOnReadLoop() 
+            void setWakeupFunc(const std::function<void ()> &f);
 
             size_t nbWaiting() {return _threads.size();}
             int nbRunning() {return _running;}

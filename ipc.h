@@ -104,4 +104,11 @@ namespace ipc
     // if not setted, it's 16ms
     void setMaxEventRate(int ms);
     int maxEventRate();
+
+    // the function will be executed after each read loop (in the data received from the process)
+    // you can also run the read loop manually with signal()
+    void addOnReadLoop(const std::function<void()>& f);
+
+    //just call this from a different thread from the main (the one you called receive on) to "wake up" the receive loop and execute any function that you added with addOnReadLoop
+    void signal();
 }

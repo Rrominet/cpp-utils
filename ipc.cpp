@@ -18,6 +18,9 @@ namespace ipc
 
     std::unordered_map<std::string, ProcessCmd> _registers; 
 
+    std::vector<std::function<void()>> _additianalCallbacks;
+    std::mutex _additianalCallbacksMtx;
+
     // you can't emit an event more often than this (in ms)
     // TODO should be savable in .config... (see storage.h)
     int _max_event_rate = 16;
@@ -300,6 +303,16 @@ namespace ipc
                 res["success"] = false;
                 std::cout << res.dump() << std::endl;
             }
+
+            std::vector<std::function<void()>> cbs;
+            {
+                std::lock_guard<std::mutex> l(_additianalCallbacksMtx);
+                cbs = _additianalCallbacks;
+            }
+            
+            lg("Executing " << cbs.size() << " additional callbacks.");
+            for (const auto& cb : cbs)
+                cb();
         };
         return f;
     }
@@ -366,5 +379,21 @@ namespace ipc
     int maxEventRate()
     {
         return _max_event_rate;
+    }
+
+    // the function will be executed after each read loop (in the data received from the process)
+    // you can also run the read loop manually with signal()
+    void addOnReadLoop(const std::function<void()>& f)
+    {
+        {
+            std::lock_guard<std::mutex> l(_additianalCallbacksMtx);
+            _additianalCallbacks.push_back(f);
+        }
+    }
+
+    void signal()
+    {
+        eventfd_t val = 1;
+        eventfd_write(stds::efd(), val);
     }
 }

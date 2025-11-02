@@ -5,8 +5,11 @@
 namespace stds
 {
     // newLine is executed each time a new line is read from stdin (the argument is the last line)
+    //newLine will be executed with empty string if you use a custom eventd writing in efd()...
     void read_in(const std::function<void(const std::string&)> &newLine);
     void read_in_async(const std::function<void(const std::string&)> &newLine);
     // eof is executed when there is no more data to read and the stdin receives EOF signal (the argument here is all the data received)
     void read_in_async(const std::function<void(const std::string&)> &newLine, const std::function<void(const std::string&)> &eof);
+
+    int efd();
 }
