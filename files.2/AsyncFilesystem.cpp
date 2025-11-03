@@ -28,10 +28,21 @@ namespace ml
         _buffer = vec;
     }
 
-    AsyncFilesystem::AsyncFilesystem(const std::string& root) : _root(root)
+    AsyncFilesystem::AsyncFilesystem(const std::string& root)
     {
+        this->setRoot(root);
+    }
+
+    void AsyncFilesystem::setRoot(const std::string& root)
+    {
+        _root = root;	
         if (_root.back() == files::sep())
             _root.pop_back();
+    }
+
+    void AsyncFilesystem::write(const std::string& path, const json& content, const std::function<void (size_t written)>& callback, const std::function<void (const std::string&)>& error)
+    {
+        write(path, content.dump(), callback, error);
     }
 
     void AsyncFilesystem::write(const std::string& path, const std::string& content, const std::function<void (size_t written)>& callback, const std::function<void (const std::string&)>& error)
@@ -100,6 +111,18 @@ namespace ml
         pool().run(func, cb);
     }
 
+    void AsyncFilesystem::_createMissingDirs(const std::string& fullpath)
+    {
+        auto parent = files::parent(fullpath);
+        if (files::isDir(parent)) 
+            files::mkdir(parent);
+    }
+
+    Ret<size_t> AsyncFilesystem::write_sync(const std::string& path, const json& content)
+    {
+        return this->write_sync(path, content.dump());
+    }
+
     Ret<size_t> AsyncFilesystem::write_sync(const std::string& path, const std::string& content)
     {
         _pushData(path, content);
@@ -108,6 +131,7 @@ namespace ml
             try
             {
                 _beingWritten.push_back(path);
+                _createMissingDirs(this->fullpath(path));
                 auto success = files::write(this->fullpath(path), content);
                 _beingWritten.pop_back();
                 return ml::ret::success<size_t>(success);
@@ -128,6 +152,7 @@ namespace ml
             try
             {
                 _beingWritten.push_back(path);
+                _createMissingDirs(this->fullpath(path));
                 auto success = files::write(this->fullpath(path), content);
                 _beingWritten.pop_back();
                 return ml::ret::success<size_t>(success);
@@ -148,6 +173,7 @@ namespace ml
             try
             {
                 _beingWritten.push_back(path);
+                _createMissingDirs(this->fullpath(path));
                 auto success = files::write(this->fullpath(path), content, size);
                 _beingWritten.pop_back();
                 return ml::ret::success<size_t>(success);
@@ -174,8 +200,10 @@ namespace ml
         obj.set(data);
         {
             std::lock_guard<std::mutex> lock(_cache_mtx);
+            _currentSize += data.size();
             _cache[path] = std::move(obj);
         }
+        _removeDataFromCacheIfTooBigLater();
     }
     void AsyncFilesystem::_pushData(const std::string& path, const std::vector<unsigned char>& data)
     {
@@ -183,8 +211,10 @@ namespace ml
         obj.set(data);
         {
             std::lock_guard<std::mutex> lock(_cache_mtx);
+            _currentSize += data.size();
             _cache[path] = std::move(obj);
         }
+        _removeDataFromCacheIfTooBigLater();
     }
     void AsyncFilesystem::_pushData(const std::string& path, void* content, size_t size)
     {
@@ -192,8 +222,10 @@ namespace ml
         obj.set(content, size);
         {
             std::lock_guard<std::mutex> lock(_cache_mtx);
+            _currentSize += size;
             _cache[path] = std::move(obj);
         }
+        _removeDataFromCacheIfTooBigLater();
     }
 
     void AsyncFilesystem::read(const std::string& path, const std::function<void (std::string)>& callback, const std::function<void (const std::string&)>& error)
@@ -285,5 +317,28 @@ namespace ml
         {
             return ml::ret::fail<std::vector<unsigned char>>(e.what());
         }
+    }
+
+    void AsyncFilesystem::_removeDataFromCacheIfTooBig(size_t toremove)
+    {
+        std::lock_guard<std::mutex> lock(_cache_mtx);
+        if (_currentSize < _maxSize)
+            return;
+
+        if (toremove == 0)
+            toremove = _currentSize/10;
+
+        size_t removed = 0;
+        while (_currentSize > _maxSize && removed < toremove)
+        {
+            removed += _cache.begin()->second.size();
+            _currentSize -= _cache.begin()->second.size();
+            _cache.erase(_cache.begin());
+        }
+    }
+
+    void AsyncFilesystem::_removeDataFromCacheIfTooBigLater(size_t toremove)
+    {
+        _pool.run([this, toremove]{_removeDataFromCacheIfTooBig(toremove);});
     }
 }
