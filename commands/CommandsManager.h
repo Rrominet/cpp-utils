@@ -113,6 +113,8 @@ namespace ml
             std::shared_ptr<Command> reverse(const std::string& id);
 
             std::shared_ptr<Command> command(const std::string& id);
+            bool exists(const std::string& id) { return _commands.find(id) != _commands.end(); }
+            bool has(const std::string& id) { return this->exists(id); }
             void removeCommand(const std::string& id);
             std::vector<std::string> lsIds();
             void logIds();

@@ -26,7 +26,6 @@ namespace ml
     {
         Events _events;
         bool _running = false;
-        bool _handler_initialized = false;
         int _fd = -1;
 
         std::mutex _watchers_map_mtx;
@@ -39,12 +38,6 @@ namespace ml
         // you need to call this at the bigining of your program
         void init()
         {
-            if (!_handler_initialized)
-            {
-                signal(SIGUSR1, dummy_handler);
-                _handler_initialized = true;
-            }
-
             _fd = inotify_init();
             if (_fd < 0)
             {
@@ -61,10 +54,14 @@ namespace ml
                 while(true)
                 {
                     int length = read(_fd, _buffer, sizeof(_buffer));
-                    if (length == -1 && errno == EINTR) 
+
+                    if (length == -1) 
                     {
-                        lg("inotify read stopped from another thread...");
-                        return;
+                        if (errno == EBADF) 
+                        {
+                            lg("inotify fd closed, stopping watcher thread...");
+                            return;
+                        }
                     }
 
                     int i = 0;
@@ -99,6 +96,7 @@ namespace ml
                             else if (event->mask & IN_MOVE_SELF)
                             {
                                 _events.emit("file-moved-self", p);
+                                LK(_watchers_map_mtx);
                                 watcher::remove(root);
                             }
                         }
@@ -119,16 +117,22 @@ namespace ml
                 return;
             }
 
-            kill(getpid(), SIGUSR1); // this should break the read loop
             _running = false;
+            close(_fd);
+            _fd = -1;
         }
 
         void add(const std::string& path)
         {
-            if (_watchers.empty())
-                watcher::init();
-            else 
+            LK(_watchers_map_mtx);
+
+            bool was_empty = _watchers.empty();
+            if (!was_empty)
                 watcher::stop();
+
+            if (_fd == -1)  // Re-init if needed
+                watcher::init();
+
             int wd = inotify_add_watch(_fd, path.c_str(), IN_CREATE | IN_DELETE | IN_MODIFY | IN_ATTRIB | IN_MOVED_FROM | IN_MOVED_TO | IN_MOVE_SELF);
             _watchers[path] = wd;
 
@@ -149,7 +153,6 @@ namespace ml
             if (_watchers.empty())
             {
                 watcher::stop();
-                close(_fd);
             }
         }
     }

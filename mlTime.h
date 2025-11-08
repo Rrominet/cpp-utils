@@ -15,6 +15,7 @@ namespace ml
         // time NEED TO BE IN SECONDS, unless segfault ! 
         // readable format
         std::string asString(int64_t time, bool onlyDay=false);
+        std::string asString(int64_t time, const std::string& format);
 
         // foramt cleaned up for a file name
         std::string asStringForFile(int64_t time);
@@ -32,6 +33,12 @@ namespace ml
         double asSeconds(const std::string& time);
         //return the time as the form HH:mm:ss
         std::string asVideoTime(double seconds);
+
+        //return a string at the format YYYY-MM-DD from what is in str
+        //useful to constraint the input of a user for example
+        std::string dateCleaned(std::string str);
+        std::string timeCleaned(std::string str);
+        std::string dateTimeCleaned(std::string str);
     }
 }
 

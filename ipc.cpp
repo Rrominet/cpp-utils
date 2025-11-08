@@ -334,6 +334,7 @@ namespace ipc
 
     void receive()
     {
+        stds::init();
         stds::read_in(onStdInLine());
         lg("receive done.");
     }

@@ -23,6 +23,8 @@ namespace ml
 
             void setArgs(const std::any& args) {_args = args;}
 
+            std::any& argsAsAny(){return _args;}
+
             template<typename T>
                 T& args()
                 {
