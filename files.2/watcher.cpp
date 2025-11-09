@@ -147,13 +147,8 @@ namespace ml
                 inotify_rm_watch(_fd, _watchers[path]);
                 _watchers.erase(it);
             }
-            else 
-                throw std::runtime_error("Watcher on path : " + path + " not found.");
-
             if (_watchers.empty())
-            {
                 watcher::stop();
-            }
         }
     }
 
