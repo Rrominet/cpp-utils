@@ -79,7 +79,6 @@ namespace ml
             return;
         }
 
-        
         for (auto &func : _listeners[type])
             func.second();
     }
