@@ -17,10 +17,21 @@
 #endif
 
 using namespace std;
+
+namespace db
+{
+    std::mutex _lgmtx;
+}
 void db::log(const vector<string> &vec)
 {
     for (auto s : vec)
         lg(s);
+}
+
+void db::log_sync(const std::string& str)
+{
+    std::lock_guard<std::mutex> lock(_lgmtx);
+    std::cerr << str << std::endl;
 }
 
 namespace db

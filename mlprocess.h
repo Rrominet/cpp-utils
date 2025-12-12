@@ -2,13 +2,22 @@
 #include <boost/process.hpp>
 #include <functions.h>
 #include "./vec.h"
-#include "./NamedMutex.h"
+#include "./thread.h"
 
 #ifdef _WIN32
 #include <boost/process/windows.hpp>
 #endif
 
 namespace bp = boost::process;
+
+struct ProcessRuntimeData
+{
+    bool running;
+    std::unique_ptr<bp::child> process;
+    std::unique_ptr<std::thread> runthread;
+    std::unique_ptr<std::thread> outthread;
+    std::unique_ptr<std::thread> errthread;
+};
 
 class Process
 {
@@ -30,7 +39,6 @@ class Process
 
         void addOnStart(std::function<void()> f);
 
-        // the return value is the index of the function in the list
         unsigned int addOnOutput(const std::function<void(const std::string& line)> &f);
         unsigned int addOnOutputBin(const std::function<void(const std::vector<unsigned char>& data_chunk)> &f);
         void addOnError(const std::function<void(const std::string& line)> &f);
@@ -40,19 +48,12 @@ class Process
 
         void start();
         void terminate(bool sigkill=false);
-        bool running(){return _running;}
+        bool running();
 
-        // this will wrap the command in a script like this : 
-        // script -q -c "your cmd" /dev/null
-        // so that the output will be interpretated as if in a TTY and so will be flushed when seeing the \r character (useful to track progress of yt-dlp, unrar, or whatever)
         void wrapInScript();
 
         std::string output();
-
-        //return teh output of std::err from the child process
         std::string error();
-
-        //return the string returned by boost if there was an error durrint launching the process
         std::string processError();
         void write(const std::string& string);
 
@@ -63,45 +64,45 @@ class Process
         size_t outBinaryBufSize()const {return _outBinaryBufSize;}
 
     private : 
+        // Configuration
         std::vector<std::string> _cmd;
         std::string _cwd;
-        std::string _output;
-        std::string _error;
+        
+        // Output storage
         std::string _processError;
-        ml::NamedMutex _runmtx;
-        ml::NamedMutex _mtx;
-        ml::NamedMutex _emtx;
 
-        std::atomic<bool> _running = false;
-        std::atomic<bool> _can_start = true;
-        std::unique_ptr<bp::child> _process = nullptr;
+        th::Safe<ProcessRuntimeData> _syncRuntime;
+        th::Safe<std::string> _output;
+        th::Safe<std::string> _error;
 
+        // Callbacks
         ml::Vec<std::function<void()>> _onStart;
         ml::Vec<std::function<void(const std::string& line)>> _onOutput;
         ml::Vec<std::function<void(const std::vector<unsigned char>& data_chunk)>> _onOutputBin;
         ml::Vec<std::function<void(const std::string& line)>> _onError;
         ml::Vec<std::function<void()>> _onEnd;
         ml::Vec<std::function<void()>> _onTerminate;
-
         ml::Vec<std::function<void()>> _onProcessError;
 
+        // Streams
         bp::ipstream _stream_output;
         bp::ipstream _stream_error;
-        bp::opstream _stream_input;
 
-        // called in every constructors
+        th::Safe<bp::opstream> _stream_input;
+
+        // Binary output handling
+        bool _treatOutputAsBinary;
+        size_t _outBinaryBufSize;
+
+        // Internal methods
         void _init();
-
-        bool _treatOutputAsBinary = false;
-        size_t _outBinaryBufSize = 8192;
-
         void _processOutputStreamAsBinary();
+        void _cleanup();
+        void _joinThreads();
 
-        ml::NamedMutex _runthmtx;
-        std::unique_ptr<std::thread> _runthread = nullptr;
-        std::unique_ptr<std::thread> _outthread = nullptr;
-        std::unique_ptr<std::thread> _errthread = nullptr;
+        th::ThreadChecker _checker;
 };
+
 
 namespace args
 {
@@ -118,7 +119,7 @@ namespace args
 namespace process
 {
     //will take stdout or stderr and exec cb for every line (\r or \n)
-    void getProcessStream(bp::ipstream& stream, const ml::Vec<std::function<void(const std::string& line)>>& cbs, std::string* out=nullptr, ml::NamedMutex* mtx=nullptr);
+    void getProcessStream(bp::ipstream& stream, const ml::Vec<std::function<void(const std::string& line)>>& cbs, th::Safe<std::string>* out=nullptr);
     std::vector<std::string> parse(const std::string& cmd);
     std::string to_string(const std::vector<std::string>& cmd);
 

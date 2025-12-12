@@ -4,85 +4,106 @@
 #include <unistd.h>
 #include <thread>
 #include <signal.h>
+#include <queue>
 #include "./files.h"
 #include "../debug.h"
 #include "../thread.h"
 
-// this is an API that watch the filesystem for changes asynchronously and emit events to the user.
-// the watching start automatically when you call at least one time watcher::add()
-// its stop automatically if you call watcher::remove() until there is no more path to watch...
-// It use the Events API. you can react to the events : 
-//  - file-created
-//  - file-modified
-//  - file-deleted
-//  - file-moved-from (file has beed moved from the watched dir, it contains its old filepath infos)
-//  - file-moved-to (file has been add the this watched dir (but from a move command, not a copy or a touch one))
-//  - moved-self (when the watched path has been moved and so is no longer valid) - when this is called the watched path is removed
-//  Doing ml::watcher::events().add("file-created", []{...})...
-//
 namespace ml
 {
     namespace watcher 
     {
+        struct WatcherSync
+        {
+            bool should_exit = false;
+            int fd = -1;
+            std::queue<std::string> pending_removals;
+            std::unordered_map<std::string, int> watchers;
+            bool thread_running = false;
+        };
+
+        th::Safe<WatcherSync> _watcher_sync ("Dir Watcher");
+
         Events _events;
-        bool _running = false;
-        int _fd = -1;
-
-        std::mutex _watchers_map_mtx;
-        std::unordered_map<std::string, int> _watchers;
-
         Events& events(){return _events;}
 
-        void dummy_handler(int sigum){}
-
-        // you need to call this at the bigining of your program
         void init()
         {
-            _fd = inotify_init();
-            if (_fd < 0)
+            if (_watcher_sync.data().fd != -1) return;  // Already initialized
+
+            _watcher_sync.data().fd = inotify_init();
+            if (_watcher_sync.data().fd < 0)
             {
                 perror("inotify_init");
                 throw std::runtime_error("Can't init inotify...");
             }
         }
-        
-        void start()
-        {
-            auto f = [&]
-            {
-                char _buffer[8192];
-                while(true)
-                {
-                    int length = read(_fd, _buffer, sizeof(_buffer));
 
-                    if (length == -1) 
+        void watcher_thread_func()
+        {
+            char buffer[8192];
+
+            while(true)
+            {
+                int fd_copy;
+                {
+                    std::lock_guard l(_watcher_sync);
+                    if (_watcher_sync.data().should_exit)
+                        break;
+                    fd_copy = _watcher_sync.data().fd;
+
+                    // Process pending removals
+                    while (!_watcher_sync.data().pending_removals.empty())
                     {
-                        if (errno == EBADF) 
+                        std::string path = _watcher_sync.data().pending_removals.front();
+                        _watcher_sync.data().pending_removals.pop();
+
+                        if (auto it = _watcher_sync.data().watchers.find(path); it != _watcher_sync.data().watchers.end())
                         {
-                            lg("inotify fd closed, stopping watcher thread...");
-                            return;
+                            inotify_rm_watch(_watcher_sync.data().fd, it->second);
+                            _watcher_sync.data().watchers.erase(it);
                         }
                     }
+                }
 
-                    int i = 0;
-                    while(i<length)
+                if (fd_copy == -1) break;
+
+                int length = read(fd_copy, buffer, sizeof(buffer));
+
+                if (length == -1) 
+                {
+                    if (errno == EBADF || errno == EINTR) 
                     {
-                        struct inotify_event *event = (struct inotify_event *)&_buffer[i];
-                        if (event->len) 
+                        lg("inotify fd closed or interrupted, stopping watcher thread...");
+                        break;
+                    }
+                    continue;
+                }
+
+                int i = 0;
+                while(i < length)
+                {
+                    struct inotify_event *event = (struct inotify_event *)&buffer[i];
+
+                    if (event->len) 
+                    {
+                        std::string root;
                         {
-                            std::string root;
+                            std::lock_guard l(_watcher_sync);
+                            for (auto& w : _watcher_sync.data().watchers)
                             {
-                                LK(_watchers_map_mtx);
-                                for (auto& w : _watchers)
+                                if (w.second == event->wd)
                                 {
-                                    if (w.second == event->wd)
-                                    {
-                                        root = w.first;
-                                        break;
-                                    }
+                                    root = w.first;
+                                    break;
                                 }
                             }
+                        }
+
+                        if (!root.empty())
+                        {
                             std::string p = root + files::sep() + event->name;
+
                             if (event->mask & IN_CREATE) 
                                 _events.emit("file-created", p);
                             else if (event->mask & IN_DELETE) 
@@ -95,61 +116,129 @@ namespace ml
                                 _events.emit("file-moved-to", p);
                             else if (event->mask & IN_MOVE_SELF)
                             {
-                                _events.emit("file-moved-self", p);
-                                LK(_watchers_map_mtx);
-                                watcher::remove(root);
+                                _events.emit("file-moved-self", root);
+
+                                // Queue removal instead of direct call to avoid deadlock
+                                std::lock_guard l(_watcher_sync);
+                                _watcher_sync.data().pending_removals.push(root);
                             }
                         }
-                        i += sizeof(struct inotify_event) + event->len;
                     }
+                    i += sizeof(struct inotify_event) + event->len;
                 }
-            };
+            }
 
-            _running = true;
-            std::thread(f).detach();
+            std::lock_guard l(_watcher_sync);
+            _watcher_sync.data().thread_running = false;
+        }
+
+        void start()
+        {
+            std::lock_guard l(_watcher_sync);
+
+            if (_watcher_sync.data().thread_running) return;  // Thread already running
+
+            _watcher_sync.data().should_exit = false;
+            _watcher_sync.data().thread_running = true;
+            std::thread(watcher_thread_func).detach();
         }
 
         void stop()
         {
-            if (!_running)
-            {
-                lg("The watcher is not running, so no need to stop it.");
+            std::lock_guard l(_watcher_sync);
+
+            if (!_watcher_sync.data().thread_running)
                 return;
+
+            _watcher_sync.data().should_exit = true;
+
+            if (_watcher_sync.data().fd != -1)
+            {
+                close(_watcher_sync.data().fd);
+                _watcher_sync.data().fd = -1;
             }
 
-            _running = false;
-            close(_fd);
-            _fd = -1;
+            // Thread will clean up _thread_running flag itself
         }
 
-        void add(const std::string& path)
+        void add(const std::string& path, bool onlyOne)
         {
-            LK(_watchers_map_mtx);
+            {
+                std::lock_guard l(_watcher_sync);
 
-            bool was_empty = _watchers.empty();
-            if (!was_empty)
-                watcher::stop();
+                // Your stupid onlyOne logic
+                if (onlyOne && !_watcher_sync.data().watchers.empty())
+                {
+                    // Clear all existing watcher_sync.data().watchers
+                    for (auto& w : _watcher_sync.data().watchers)
+                    {
+                        inotify_rm_watch(_watcher_sync.data().fd, w.second);
+                    }
+                    _watcher_sync.data().watchers.clear();
 
-            if (_fd == -1)  // Re-init if needed
-                watcher::init();
+                    // Stop and reinit
+                    if (_watcher_sync.data().fd != -1)
+                    {
+                        _watcher_sync.data().should_exit = true;
+                        close(_watcher_sync.data().fd);
+                        _watcher_sync.data().fd = -1;
+                    }
+                }
 
-            int wd = inotify_add_watch(_fd, path.c_str(), IN_CREATE | IN_DELETE | IN_MODIFY | IN_ATTRIB | IN_MOVED_FROM | IN_MOVED_TO | IN_MOVE_SELF);
-            _watchers[path] = wd;
+                if (_watcher_sync.data().fd == -1)
+                {
+                    init();
+                }
 
-            watcher::start();
+                int wd = inotify_add_watch(_watcher_sync.data().fd, path.c_str(), 
+                        IN_CREATE | IN_DELETE | IN_MODIFY | IN_ATTRIB | 
+                        IN_MOVED_FROM | IN_MOVED_TO | IN_MOVE_SELF);
+
+                if (wd == -1)
+                {
+                    perror("inotify_add_watch");
+                    return;
+                }
+                _watcher_sync.data().watchers[path] = wd;
+            }
+            start();
         }
 
         void remove(const std::string& path)
         {
-            LK(_watchers_map_mtx);
-            if (auto it = _watchers.find(path); it != _watchers.end())
+            std::lock_guard l(_watcher_sync);
+
+            if (auto it = _watcher_sync.data().watchers.find(path); it != _watcher_sync.data().watchers.end())
             {
-                inotify_rm_watch(_fd, _watchers[path]);
-                _watchers.erase(it);
+                if (_watcher_sync.data().fd != -1)
+                {
+                    inotify_rm_watch(_watcher_sync.data().fd, it->second);
+                }
+                _watcher_sync.data().watchers.erase(it);
             }
-            if (_watchers.empty())
-                watcher::stop();
+
+            if (_watcher_sync.data().watchers.empty())
+            {
+                l.~lock_guard();
+                stop();
+            }
+        }
+
+        void stop_all()
+        {
+            {
+                std::lock_guard l(_watcher_sync);
+
+                for (auto& w : _watcher_sync.data().watchers)
+                {
+                    if (_watcher_sync.data().fd != -1)
+                    {
+                        inotify_rm_watch(_watcher_sync.data().fd, w.second);
+                    }
+                }
+                _watcher_sync.data().watchers.clear();
+            }
+            stop();
         }
     }
-
 }

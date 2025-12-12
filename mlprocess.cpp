@@ -3,6 +3,7 @@
 #include "os.h"
 #include "exceptions.h"
 #include <memory>
+#include <mutex>
 #include <stdexcept>
 #include <signal.h>
 #include <iostream>
@@ -24,94 +25,186 @@
 #include <vector>
 #endif
 
-Process::Process() : _runmtx("Process Run Mutex"), _mtx("Process Output Mutex"), _emtx("Process Error Mutex"), _runthmtx("Process Run Thread Mutex")
+#define PROPS _syncRuntime("Process Mutex"), _output("Output Mutex"), _error("Error Mutex"),\
+       _treatOutputAsBinary(false), _outBinaryBufSize(8192), _checker()
+
+
+Process::Process() : PROPS
 {
     _init();
 }
 
-Process::Process(const std::string& cmd) : _cmd(process::parse(cmd)),_runmtx("Process Run Mutex"), _mtx("Process Output Mutex"), _emtx("Process Error Mutex"), _runthmtx("Process Run Thread Mutex")
+Process::Process(const std::string& cmd) 
+    : PROPS
 {
     _init();
+    this->setCmd_s(cmd);
 }
 
-Process::Process(const std::string& cmd, const std::string& cwd) : _cmd(process::parse(cmd)), _cwd(cwd),_runmtx("Process Run Mutex"), _mtx("Process Output Mutex"), _emtx("Process Error Mutex"), _runthmtx("Process Run Thread Mutex")
+Process::Process(const std::string& cmd, const std::string& cwd) 
+    : PROPS
 {
     _init();
+    this->setCmd_s(cmd);
+    this->setCwd(cwd);
 }
 
-Process::Process(const std::vector<std::string>& cmd) : _cmd (cmd),_runmtx("Process Run Mutex"), _mtx("Process Output Mutex"), _emtx("Process Error Mutex"), _runthmtx("Process Run Thread Mutex")
+Process::Process(const std::vector<std::string>& cmd) 
+    : PROPS
 {
     _init();
+    this->setCmd(cmd);
 }
 
-Process::Process(const std::vector<std::string>& cmd,const std::string& cwd) : _cmd(cmd), _cwd(cwd),_runmtx("Process Run Mutex"), _mtx("Process Output Mutex"), _emtx("Process Error Mutex"), _runthmtx("Process Run Thread Mutex")
+Process::Process(const std::vector<std::string>& cmd, const std::string& cwd) 
+    : PROPS
 {
     _init();
+    this->setCmd(cmd);
+    this->setCwd(cwd);
 }
 
 void Process::_init()
 {
-    auto f = [this]
+    _checker.check();
+    auto reset_outputs = [this]
     {
         {
-            th_guard(_mtx);
-            _output = "";
+            th_guard(_output);
+            _output.data().clear();
         }
         {
-            th_guard(_emtx);
-            _error = "";
+            th_guard(_error);
+            _error.data().clear();
         }
         _processError = "";
     };
 
-    this->addOnEnd(f);
-    this->addOnTerminate(f);
+    this->addOnEnd(reset_outputs);
+    this->addOnTerminate(reset_outputs);
+
+//     this->addOnProcessError([this]{
+//             auto f = [this]{
+//             this->onError("Process Error : " + this->error() + "Debug informations :\n" + this->output());
+//             };
+//             ml::app()->queue(f);
+//             });
+
+#ifdef mydebug
+    auto outdebug = [this](const std::string& s)
+    {
+        files::append(files::execDir() + files::sep() + files::name(vc::last(_cmd)) + "-pc_out", s + "\n");
+    };
+
+    auto errdebug = [this](const std::string& s)
+    {
+        files::append(files::execDir() + files::sep() + files::name(vc::last(_cmd)) + "-pc_err", s + "\n");
+    };
+    this->addOnOutput(outdebug);
+    this->addOnError(errdebug);
+
+    this->addOnTerminate([this]{
+            files::write(files::execDir() + files::sep() + files::name(vc::last(_cmd)) + "-pc_terminate", "Process " + files::name(vc::last(_cmd)) + " terminated. This shoudn't hapenning.");
+            });
+#endif
 }
 
 Process::~Process()
 {
-   this->terminate();
-   {
-        std::lock_guard lk(_runthmtx);
-       if (_runthread)
-           _runthread->join();
-   }
-   if (_outthread)
-       _outthread->join();
-   if (_errthread)
-       _errthread->join();
+    this->terminate(true);
+    _joinThreads();
+    _cleanup();
+    lg("~Process");
+}
 
-   _stream_input.pipe().close();
-   _stream_output.pipe().close();
-   _stream_error.pipe().close();
+void Process::_cleanup()
+{
+    _checker.check();
+    {
+        th_guard(_stream_input);
+        if (_stream_input.data().pipe().is_open())
+            _stream_input.data().pipe().close();
+    }
+    if (_stream_output.pipe().is_open())
+        _stream_output.pipe().close();
+    if (_stream_error.pipe().is_open())
+        _stream_error.pipe().close();
+}
 
-   lg("~Process");
+void Process::_joinThreads()
+{
+    _checker.check();
+
+    // Extract threads from the Safe wrapper
+    std::unique_ptr<std::thread> runth;
+    std::unique_ptr<std::thread> outth;
+    std::unique_ptr<std::thread> errth;
+    
+    {
+        std::lock_guard l(_syncRuntime);
+        runth = std::move(_syncRuntime.data().runthread);
+        outth = std::move(_syncRuntime.data().outthread);
+        errth = std::move(_syncRuntime.data().errthread);
+    }
+    // Lock released here
+    
+    // Now join WITHOUT holding the lock
+    if (runth && runth->joinable())
+        runth->join();
+    if (outth && outth->joinable())
+        outth->join();
+    if (errth && errth->joinable())
+        errth->join();
+
 }
 
 void Process::addOnStart(std::function<void()> f)
 {
+    _checker.check();
     _onStart.push(f);
 }
 
-unsigned int  Process::addOnOutput(const std::function<void(const std::string& line)> &f)
+unsigned int Process::addOnOutput(const std::function<void(const std::string& line)> &f)
 {
+    _checker.check();
     _onOutput.push(f);
     return _onOutput.size() - 1;
 }
 
 unsigned int Process::addOnOutputBin(const std::function<void(const std::vector<unsigned char>& data_chunk)> &f)
 {
+    _checker.check();
     _onOutputBin.push(f);
     return _onOutputBin.size() - 1;
 }
 
 void Process::addOnError(const std::function<void(const std::string& line)> &f)
 {
+    _checker.check();
     _onError.push(f);
+}
+
+void Process::addOnEnd(const std::function<void()> &f)
+{
+    _checker.check();
+    _onEnd.push(f);
+}
+
+void Process::addOnTerminate(const std::function<void()> &f)
+{
+    _checker.check();
+    _onTerminate.push(f);
+}
+
+void Process::addOnProcessError(const std::function<void()> &f)
+{
+    _checker.check();
+    _onProcessError.push(f);
 }
 
 void Process::setCmd_s(const std::string &cmd)
 {
+    _checker.check();
     lg("settings _cmd..");
     _cmd = process::parse(cmd);
     lg("_cmd setted : " + cmd);
@@ -122,99 +215,153 @@ std::string Process::cmd_s() const
     return process::to_string(_cmd);	
 }
 
+bool Process::running()
+{
+    std::lock_guard l(_syncRuntime);
+    return _syncRuntime.data().running;
+}
+
 void Process::start()
 {
-    if (!_can_start) 
+    _checker.check();
     {
-        lg("_can_start is false. Abort." );
-        return;
+        std::lock_guard l(_syncRuntime);
+        if (_syncRuntime.data().running)
+        {
+            lg("Process already running. Abort.");
+            return;
+        }
+
+        if (_cmd.empty())
+            throw error::missing_arg("cmd is empty ! No process to launch.");
+
+        if (_cwd.empty())
+            _cwd = os::home();
+
+        if (!files::isDir(_cwd))
+            throw error::dir_not_found("current working dir is not a dir !");
+
+        // Join previous run thread if it exists
+        if (_syncRuntime.data().runthread && _syncRuntime.data().runthread->joinable())
+            _syncRuntime.data().runthread->join();
+
+        _syncRuntime.data().running = true;
     }
 
-    if (_running)
-    {
-        lg("_running is true. Abort." );
-        return;
-    }
-
-    _can_start = false;
-
-    if (_cmd.empty())
-    {
-        _can_start = true;
-        throw error::missing_arg("cmd is empty ! No process to launch.");
-    }
-
-    if (_cwd.empty())
-        _cwd = os::home();
-
-    if (!files::isDir(_cwd))
-    {
-        _can_start = true;
-        throw error::dir_not_found("current working dir is not a dir !");
-    }
-
-    auto f = [=] 
+    // Start the run thread outside the lock
+    auto run_func = [this]() 
     {
         lg("starting process...");
         lg("Process " << this);
         lg("cmd : " + this->cmd_s());
 
-        _stream_input = bp::opstream();
+        lg("a");
+
+        {
+            std::lock_guard l(_stream_input);
+            _stream_input.data() = bp::opstream();
+        }
+        lg("a");
         _stream_output = bp::ipstream();
+        lg("a");
         _stream_error = bp::ipstream();
+        lg("a");
 
         try
         {
             {
-                th_guard(_runmtx);
+        lg("a");
+                std::lock_guard l(_syncRuntime);
+                std::lock_guard l2(_stream_input);
+        lg("a");
 #ifdef _WIN32
-                process = std::make_unique<bp::child>(_cwd), bp::std_out > _stream_output, bp::std_err > _stream_error, bp::std_in < _stream_input, bp::windows::create_no_window);
+                _syncRuntime.data().process = std::make_unique<bp::child>(_cmd, bp::start_dir(_cwd), bp::std_out > _stream_output, 
+                                                       bp::std_err > _stream_error, bp::std_in < _stream_input.data(), 
+                                                       bp::windows::create_no_window);
 #else
-                _process = std::make_unique<bp::child>(_cmd, bp::start_dir(_cwd), bp::std_out > _stream_output, bp::std_err > _stream_error, bp::std_in < _stream_input);
+        lg("a");
+                _syncRuntime.data().process = std::make_unique<bp::child>(_cmd, bp::start_dir(_cwd), bp::std_out > _stream_output, 
+                                                       bp::std_err > _stream_error, bp::std_in < _stream_input.data());
+        lg("a");
 #endif
             }
+
             lg2("process", this->cmd_s());
             lg2("current working dir", _cwd);
-            lg("process {" + this->cmd_s()  + "} just started in dir " + _cwd);
+            lg("process {" + this->cmd_s() + "} just started in dir " + _cwd);
 
+            // Start output handling threads
             if (!_treatOutputAsBinary)
             {
-                _outthread = std::make_unique<std::thread>([this]{
-                        process::getProcessStream(_stream_output, _onOutput, &_output, &_mtx);
-                        });
+                std::lock_guard l(_syncRuntime);
+                _syncRuntime.data().outthread = std::make_unique<std::thread>([this]{
+                    process::getProcessStream(_stream_output, _onOutput, &_output);
+                });
             }
             else 
+            {
                 _processOutputStreamAsBinary();
+            }
 
-            _errthread = std::make_unique<std::thread>([this]{
-                    process::getProcessStream(_stream_error, _onError, &_output, &_emtx);
-            });
+            {
+                std::lock_guard l(_syncRuntime);
+                _syncRuntime.data().errthread = std::make_unique<std::thread>([this]{
+                        process::getProcessStream(_stream_error, _onError, &_error);
+                        });
+            }
+
+            _onStart.exec();
 
             std::error_code e;
-            lg("wating for process to finish...");
-            _process->wait(e);
+            lg("waiting for process to finish...");
+            
+            bp::child* p;
+            {
+                std::lock_guard l(_syncRuntime);
+                if (_syncRuntime.data().process)
+                    p = _syncRuntime.data().process.get();
+            }
+
+            //this can't be locked in a mutex because, if not none of the runtime variable could be called during the entire process execution.
+            p->wait(e);
+
             lg("Process finished.");
-            lg("Joining out thread.");
-            _outthread->join();
-            _outthread.reset();
 
-            lg("Joining err thread.");
-            _errthread->join();
-            _errthread.reset();
-            lg("Err Thread joined.");
+            {
+                std::lock_guard l(_syncRuntime);
+                // Join output threads
+                if (_syncRuntime.data().outthread && _syncRuntime.data().outthread->joinable())
+                {
+                    lg("Joining out thread.");
+                    _syncRuntime.data().outthread->join();
+                    _syncRuntime.data().outthread.reset();
+                }
 
-            _running = false;
+                if (_syncRuntime.data().errthread && _syncRuntime.data().errthread->joinable())
+                {
+                    lg("Joining err thread.");
+                    _syncRuntime.data().errthread->join();
+                    _syncRuntime.data().errthread.reset();
+                }
+            }
+
+            int exit_code = 0;
+            {
+                std::lock_guard l(_syncRuntime);
+                if (_syncRuntime.data().process)
+                    exit_code = _syncRuntime.data().process->exit_code();
+                _syncRuntime.data().running = false;
+            }
 
             lg("Process finished or killed.");
 
-            if (_process->exit_code() != 0)
+            if (exit_code != 0)
             {
                 lg("Process error : " << e.message() << " and code : " << e.value());
                 _processError = e.message();
                 _onProcessError.exec();
             }
 
-            _can_start = true;
             _onEnd.exec();
         }
         catch(const std::exception& e)
@@ -223,93 +370,86 @@ void Process::start()
             lg("command tried : " << this->cmd_s());
             _processError = e.what();
             _onProcessError.exec();
-            _can_start = true;
+            
+            {
+                std::lock_guard l(_syncRuntime);
+                _syncRuntime.data().running = false;
+            }
         }
     };
 
     {
-        std::lock_guard lk(_runthmtx);
-        if (_runthread)
-        {
-            _runthread->join();
-            _runthread.reset();
-        }
+        std::lock_guard l(_syncRuntime);
+        _syncRuntime.data().runthread = std::make_unique<std::thread>(run_func);
     }
-
-    _running = true;
-    _runthread = std::make_unique<std::thread>(f);
 }
 
 void Process::_processOutputStreamAsBinary()
 {
     auto f = [this]
     {
-        char buf[_outBinaryBufSize];
-        th_guard(_mtx);
-        while (_stream_output.read(buf, _outBinaryBufSize))
+        std::vector<char> buf(_outBinaryBufSize);
+        
+        while (true)
         {
-            if (!_running)
-                break;
+            {
+                std::lock_guard l(_syncRuntime);
+                if (!_syncRuntime.data().running)
+                    break;
+            }
 
-            for (auto& cb : _onOutputBin)
-                cb(std::vector<unsigned char>(buf, buf + _outBinaryBufSize));
-
-            if (!_running)
+            _stream_output.read(buf.data(), _outBinaryBufSize);
+            std::streamsize bytes_read = _stream_output.gcount();
+            
+            if (bytes_read > 0)
+            {
+                std::vector<unsigned char> data(buf.begin(), buf.begin() + bytes_read);
+                for (auto& cb : _onOutputBin)
+                    cb(data);
+            }
+            else
+            {
                 break;
+            }
         }
     };
 
-    _outthread = std::make_unique<std::thread>(f);
+    {
+        std::lock_guard l(_syncRuntime);
+        _syncRuntime.data().outthread = std::make_unique<std::thread>(f);
+    }
 }
 
 void Process::terminate(bool sigkill)
 {
-    if (!_running)
+    std::lock_guard l(_syncRuntime);
+    
+    if (!_syncRuntime.data().running || !_syncRuntime.data().process)
         return;
 
     lg("Process::terminate");
-    {
-        lg("trying to lock guard the _process var...");
-        th_guard(_runmtx);
-        lg("lock for _process aquired.");
-        if (!_process)
-        {
-            _running = false;
-            _can_start = true;
-            return;
-        }
-        if (sigkill)
-            ::kill(_process->id(), SIGKILL);
-        else 
-            _process->terminate();
-    }
-
-    lg("Process terminated.");
-    {
-        std::lock_guard lk(_runthmtx);
-        if (_runthread)
-        {
-            _runthread->join();
-            _runthread.reset();
-        }
-    }
-    _onTerminate.exec();
+    
+    if (sigkill)
+        ::kill(_syncRuntime.data().process->id(), SIGKILL);
+    else 
+        _syncRuntime.data().process->terminate();
+    
+    _syncRuntime.data().running = false;
+    
+    // Note: We don't join threads here to avoid deadlock in destructor
+    // The destructor will join them after releasing the lock
 }
 
 std::string Process::output()
 {
-    {
-        th_guard(_mtx);
-        return _output;
-    }
+    th_guard(_output);
+    return _output.data();
 }
 
 std::string Process::error()
 {
-    {
-        th_guard(_emtx);
-        return _error;
-    }
+    th_guard(_error);
+    return _error.data();
 }
 
 std::string Process::processError()
@@ -317,31 +457,80 @@ std::string Process::processError()
     return _processError;
 }
 
-void Process::addOnEnd(const std::function<void()> &f)
-{
-   _onEnd.push(f);
-}
-
-void Process::addOnTerminate(const std::function<void()> &f)
-{
-    _onTerminate.push(f) ;
-}
-
-void Process::addOnProcessError(const std::function<void()> &f)
-{
-    _onProcessError.push(f) ;
-}
-
 void Process::write(const std::string& string)
 {
-    if (!_running)
-        throw std::runtime_error("The process does not run anymore !");
-    _stream_input << string << std::endl;
+    lg("a");
+    {
+    lg("a");
+        th_guard(_syncRuntime);
+    lg("a");
+        if (!_syncRuntime.data().running)
+            throw std::runtime_error("The process does not run anymore !");
+    lg("a");
+    }
+
+    lg("a");
+    {
+    lg("a");
+        th_guard(_stream_input);
+    lg("a");
+        _stream_input.data() << string << std::endl;
+    lg("a");
+    }
 }
 
 void Process::wrapInScript()
 {
+    _checker.check();
     _cmd = process::wrappedInScript(_cmd);
+}
+
+void process::getProcessStream(bp::ipstream& stream, const ml::Vec<std::function<void(const std::string& line)>>& cbs, th::Safe<std::string>* out)
+{
+    char c;
+    std::string line;
+    while (stream.get(c)) {
+        if (c == '\n' || c == '\r') {
+            // Process the completed line
+            for (const auto& f : cbs) {
+                if (f)
+                    f(line);
+            }
+
+            {
+                if (out)
+                {
+                    th_guard(*out);
+                    out->data() += line + "\n";
+                }
+            }
+
+            line.clear();
+
+            // Skip the next character if it's part of a \r\n sequence
+            if (c == '\r' && stream.peek() == '\n') {
+                stream.get(); // Consume the \n
+            }
+        } else {
+            line += c;
+        }
+    }
+
+    // Don't forget to process the last line if it doesn't end with a newline
+    if (!line.empty()) {
+        for (const auto& f : cbs) {
+            if (f)
+                f(line);
+        }
+
+        {
+            if (out)
+            {
+                th_guard(*out);
+                out->data() += line;
+            }
+        }
+    }
 }
 
 namespace args
@@ -439,51 +628,6 @@ namespace args
     }
 }
 
-void process::getProcessStream(bp::ipstream& stream, const ml::Vec<std::function<void(const std::string& line)>>& cbs, std::string* out, ml::NamedMutex* mtx)
-{
-    char c;
-    std::string line;
-    while (stream.get(c)) {
-        if (c == '\n' || c == '\r') {
-            // Process the completed line
-            for (const auto& f : cbs) {
-                if (f)
-                    f(line);
-            }
-
-            {
-                if (mtx)
-                    th_guard(*mtx);
-                if (out)
-                    *out += line + "\n";
-            }
-
-            line.clear();
-
-            // Skip the next character if it's part of a \r\n sequence
-            if (c == '\r' && stream.peek() == '\n') {
-                stream.get(); // Consume the \n
-            }
-        } else {
-            line += c;
-        }
-    }
-
-    // Don't forget to process the last line if it doesn't end with a newline
-    if (!line.empty()) {
-        for (const auto& f : cbs) {
-            if (f)
-                f(line);
-        }
-
-        {
-            if (mtx)
-                th_guard(*mtx);
-            if (out)
-                *out += line;
-        }
-    }
-}
 
 std::string process::exec(const char* cmd, const char* workingdir)
 {

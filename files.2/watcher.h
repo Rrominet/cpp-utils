@@ -20,7 +20,9 @@ namespace ml
     namespace watcher 
     {
         Events& events();
-        void add(const std::string& path);
+        
+        //if onlyOne is true, the watcher will remove the old path before adding the new one
+        void add(const std::string& path, bool onlyOne=true);
         void remove(const std::string& path);
     }
 }

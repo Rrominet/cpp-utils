@@ -60,6 +60,10 @@ namespace ml::json
     nlohmann::json merged(const nlohmann::json& a, const nlohmann::json& b);
     void merge(nlohmann::json& src, const nlohmann::json& with);
 
+
+    //return true if a and b are equal (meaning their key and values match)
+    bool compare(const nlohmann::json& a, const nlohmann::json& b);
+
     template<typename F>
         // F signature : void (const std::sttring& key, const json& value)
         void doOnEachAttr(nlohmann::json& data, F f)

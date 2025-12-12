@@ -17,7 +17,12 @@ namespace ipc
         // the id is mandatory because you need to know which response is for which request (specially when async calls are used)
         std::function<json(const json&, int id)> cb = 0;
         std::string name;
+        std::vector<std::string> mendatoryKeys;
+        std::vector<std::string> optionalKeys;
 
+        //abstract the cb call and the mendatory keys check.
+        json onResponse(const json& response, int id);
+        void log();
     };
 
     //mendatory if you want to exec the functions registered from arguments.
@@ -40,9 +45,12 @@ namespace ipc
     //    "error" : "some error message if the call failed"
     //}
 
-    ProcessCmd& reg(const std::string& function, const std::function<json(const json& args)>& todo);
+    ProcessCmd& reg(const std::string& function,
+            const std::function<json(const json& args)>& todo,
+            const std::vector<std::string>& mendatoryKeys={},
+            const std::vector<std::string>& optionalKeys={});
 
-    //useful if you need to reference tne ProcessCmd in your callback (for all ProcessCmd.stream(..) for example)
+    //useful if you need to reference to the ProcessCmd in your callback (for all ProcessCmd.stream(..) for example)
     ProcessCmd& reg(const std::string& function);
 
     // means that this process (the one running the code) is setted to register function that other processes can call with send (or higher level functions)
@@ -111,4 +119,8 @@ namespace ipc
 
     //just call this from a different thread from the main (the one you called receive on) to "wake up" the receive loop and execute any function that you added with addOnReadLoop
     void signal();
+
+    //show function infos (like mendatory keys, optional keys, etc.)
+    void log(const std::string& funcid);
+    void logAll();
 }

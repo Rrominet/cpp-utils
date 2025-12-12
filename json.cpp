@@ -74,5 +74,45 @@ namespace ml::json
         json::merge(_r, b);
         return _r;
     }
+
+
+    //return true if a and b are equal (meaning their key and values match)
+    bool compare(const nlohmann::json& a, const nlohmann::json& b)
+    {
+        if (a.type() != b.type())
+            return false;
+        
+        if (a.is_object())
+        {
+            if (a.size() != b.size())
+                return false;
+            
+            for (auto& a_item : a.items())
+            {
+                if (!b.contains(a_item.key()))
+                    return false;
+                
+                if (!compare(a_item.value(), b[a_item.key()]))
+                    return false;
+            }
+            return true;
+        }
+        else if (a.is_array())
+        {
+            if (a.size() != b.size())
+                return false;
+            
+            for (size_t i = 0; i < a.size(); ++i)
+            {
+                if (!compare(a[i], b[i]))
+                    return false;
+            }
+            return true;
+        }
+        else
+        {
+            return a == b;
+        }
+    }
 }
 

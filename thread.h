@@ -1,4 +1,5 @@
 #pragma once 
+#include <chrono>
 #include <string>
 #include <vector>
 #include <mutex>
@@ -27,77 +28,123 @@
 
 namespace th
 {
-    enum State
+#ifdef mydebug
+    class Mutex
     {
-        NOT_STARTED,
-        RUNNING, 
-        FINISHED,
-        _ERROR,
+        public :
+            Mutex(const std::string& name="");
+            ~Mutex() = default;
+
+            void lock();
+            bool try_lock();
+            void unlock();
+            std::string name() const{return _name;}
+
+            std::optional<std::thread::id> owner(){return _owner;}
+
+            std::mutex& mtx(){return _mtx;}
+
+        private : 
+            std::string _name;
+            std::mutex _mtx;
+            std::atomic<std::thread::id> _owner;
+            std::chrono::time_point<std::chrono::high_resolution_clock> _timer;
     };
 
-    template <typename T>
+    class ThreadChecker
+    {
+        private : 
+            std::thread::id _id;
+
+        public : 
+            ThreadChecker() : _id(std::this_thread::get_id()) {}
+            ~ThreadChecker() = default;
+
+            void check();
+    };
+
+    using Mutex = th::Mutex;
+    //using Thread = th::Thread;
+#else
+    using Mutex = std::mutex;
+    //using Thread = std::thread;
+    class ThreadChecker
+    {
+        public : 
+            ThreadChecker() = default;
+            ~ThreadChecker() = default;
+            void check(){}
+    };
+#endif
+
+    template <typename T, typename M=Mutex>
         class Safe
         {
-            private : 
-                T _data;
-                std::shared_mutex _mtx;
-
             public : 
-                Safe& operator=(const T& other)
+                Safe(const std::string& mtxname="") : _mtx(mtxname) {}
+
+                void lock(){_mtx.lock();}
+                void unlock(){_mtx.unlock();}
+                bool try_lock(){return _mtx.try_lock();}
+
+                T& data()
                 {
+#ifdef mydebug
+                    if (!_mtx.owner().has_value())
                     {
-                        th_shard(_mtx);
-                        _data = other;
+                        lg("mutex (data) : " << _mtx.name() << " not locked by any thread. This data should be protected by a lock.");
+                        std::terminate();
                     }
-                    return *this;
-                }
 
-                Safe& operator+=(const T& other)
-                {
+                    auto cid = std::this_thread::get_id();
+                    if (_mtx.owner().value() != cid)
                     {
-                        th_shard(_mtx);
-                        _data += other;
+                        lg("mutex (data) : " << _mtx.name() << " locked by another thread : " << _mtx.owner().value());
+                        lg("Meaning you're trying to access the data from a different thread than the one that locked it. You need to lock it first.");
+                        std::terminate();
                     }
-                    return *this;
-                }
-
-                Safe& operator-=(const T& other)
-                {
-                    {
-                        th_shard(_mtx);
-                        _data -= other;
-                    }
-                    return *this;
-                }
-
-                operator T () {th_shared(_mtx); return _data;}
-
-                T get()
-                {
-                    th_shared(_mtx);
+#else
+#endif
                     return _data;
                 }
+
+                M& mtx(){return _mtx;}
+
+            private : 
+                T _data;
+                M _mtx;
+
         };
 
-    struct Futur
+    //work only with Safe (not Mutex directly (to FIX))
+    class Cond
     {
-        Safe<std::string> infos;
-        Safe<std::string> allInfos;
-        Safe<std::string> error;
-        std::atomic<float> pgr = 0.0;
-        std::atomic<long long> count = 0;
-        std::atomic<long long> count2 = 0;
-        std::atomic<long long> count3 = 0;
-        std::atomic<long long> count4 = 0;
-        std::atomic<long long> total = 0;
-        std::atomic<bool> needToQuit = false;
-        std::map<std::string, std::string> moreInfos;
-        std::atomic<State> state = NOT_STARTED;
+        std::condition_variable _cv;
+        public:
+        template<typename MutexW, typename Predicate>
+            void wait(std::unique_lock<MutexW>& lock, Predicate pred) {
+                auto& wrapper = *lock.mutex();
 
-        float readPgr(){return pgr;}
-        long long readCount(){return count;}
-        long long readTotal(){return total;}
+                while (!pred()) {
+                    lock.unlock(); // Calls your wrapper's unlock (debug code runs)
+
+#ifdef mydebug
+                    std::unique_lock<std::mutex> internal_lock(wrapper.mtx().mtx());
+#else
+                    std::unique_lock<std::mutex> internal_lock(wrapper.mtx());
+#endif
+                    _cv.wait(internal_lock);
+                    internal_lock.unlock();
+
+                    lock.lock(); // Calls your wrapper's lock (debug code runs)
+                }
+            }
+
+        void notify_one() { _cv.notify_one(); }
+        void notify_all() { _cv.notify_all(); }
     };
+
+
 
     int maxRunning();
 
@@ -300,15 +347,21 @@ namespace ml
 
 namespace th 
 {
+    struct ThreadPoolSync
+    {
+        ml::Vec<std::thread> threads;
+        std::queue<std::function<void()>> jobs;
+        bool shouldStop = false;
+    };
+
     class ThreadPool
     {
         private : 
             unsigned int _max = 0;
-            std::condition_variable _qcond;
-            ml::thVec<std::thread> _threads;
-            std::queue<std::function<void()>> _jobs;
-            bool _shouldStop = false;
+            Cond _qcond;
             std::atomic_int _running = 0;
+
+            th::Safe<ThreadPoolSync> _sync;
 
             std::vector<std::function<void()>> _callbacks;
             std::function<void ()> _wakeupFunc = 0;
@@ -334,7 +387,7 @@ namespace th
             //in ipc it would simply a be a call to ipc::signal() and having the pool.processCallbacks() directly in the ipc stdin read loop with ipc::addOnReadLoop() 
             void setWakeupFunc(const std::function<void ()> &f);
 
-            size_t nbWaiting() {return _threads.size();}
+            size_t nbWaiting() {std::lock_guard lk(_sync); return _sync.data().threads.size();}
             int nbRunning() {return _running;}
 
             int max(){return _max;}

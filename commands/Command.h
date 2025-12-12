@@ -16,6 +16,8 @@ namespace ml
             virtual ~Command() = default;
 
             virtual void exec();
+            virtual void exec(const std::any& args){_args = args; this->exec();}
+
             virtual void reverse();
 
             virtual void setExec(const std::function<void(const std::any&)>& f) { _exec = f; }

@@ -4,7 +4,6 @@
 #include "./thread.h"
 #include "./mlprocess.h"
 #include "./files.2/files.h"
-#include "./NamedMutex.h"
 
 namespace bp = boost::process;
 
@@ -427,7 +426,7 @@ namespace ffmpeg
         std::vector<unsigned char> jpg;
     };
 
-    ml::NamedMutex firstFramePcs_mtx("First Frame Processes Mutex");
+    th::Mutex firstFramePcs_mtx("First Frame Processes Mutex");
 
     std::vector<std::unique_ptr<FirstFramePc>> firstFramePcs;
     void removeFirstFramePc(FirstFramePc* fp)
