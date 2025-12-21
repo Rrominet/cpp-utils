@@ -97,52 +97,83 @@ namespace th
 #endif
 }
 
+
+th::ThreadPool::ThreadPool(int max): _sync("th::ThreadPool"), _max(max){}
+
+void th::ThreadPool::_init()
+{
+    lg("th::ThreadPool::_init");
+    if (_max < 1)
+        _max = th::maxRunning();
+
+    lg(_max);
+    std::lock_guard l(_sync);
+    for (int i=0; i<_max; i++)
+        _sync.data().threads.push(std::thread(&ThreadPool::threadRun, this));
+
+    _sync.data().initialized = true;
+}
+
 void th::ThreadPool::threadRun()
 {
+    lg("th::ThreadPool::threadRun (in thread : " << std::this_thread::get_id() << ")");
     while(true) 
     {
         std::function<void()> job = 0;
         {
+            lg("a");
             std::unique_lock lk(_sync);
+            lg("a");
             _qcond.wait(lk, [this]{
-                    return !_sync.data().jobs.empty() || _sync.data().shouldStop;
+                    return (!_sync.data().jobs.empty() || _sync.data().shouldStop);
                     });
+            lg("a");
             if (_sync.data().shouldStop)
                 return;
+            lg("a");
 
             job = _sync.data().jobs.front();
+            lg("a");
             _sync.data().jobs.pop();
+            lg("a");
         }
         _running ++;
+            lg("a");
         job();
+            lg("a");
         _running --;
+            lg("a");
     }
-}
-
-th::ThreadPool::ThreadPool(int max): _sync("th::ThreadPool")
-{
-    if (max > 0)
-        _max = max;
-    else
-        _max = th::maxRunning();
-    
-    std::lock_guard l(_sync);
-    for (int i=0; i<_max; i++)
-        _sync.data().threads.push(std::thread(&ThreadPool::threadRun, this));
 }
 
 th::ThreadPool::~ThreadPool()
 {
-    this->stop();
+    lg("th::ThreadPool::~");
+    bool initialized = false;
+    {
+        std::lock_guard l(_sync);
+        initialized = _sync.data().initialized;
+    }
+    if (initialized)
+        this->stop();
 }
 
 void th::ThreadPool::run(const std::function<void ()> &f, const std::function<void ()> &callback)
 {
+    lg("th::ThreadPool::run");
+    bool initialized = false;
+    {
+        std::lock_guard l(_sync);
+        initialized = _sync.data().initialized;
+    }
+    if (!initialized)
+        _init();
+
     auto thfunc = [this, f, callback]
     {
         f();
         {
-            std::lock_guard<std::mutex> lk(_cb_mtx);
+            std::lock_guard lk(_cb_mtx);
             _callbacks.push_back(callback);
         }
 
@@ -152,6 +183,7 @@ void th::ThreadPool::run(const std::function<void ()> &f, const std::function<vo
                 _wakeupFunc();
         }
     };
+
     {
         std::lock_guard lk(_sync);
         _sync.data().jobs.push(thfunc);
@@ -169,18 +201,29 @@ void th::ThreadPool::setWakeupFunc(const std::function<void ()> &f)
 
 void th::ThreadPool::stop()
 {
+    lg("th::ThreadPool::stop");
     {
-        std::unique_lock lk(_sync);
+        std::lock_guard lk(_sync);
         _sync.data().shouldStop = true;
     }
 
+    lg("notifying threads");
     _qcond.notify_all();
+
+    lg("deleting threads");
+    for (auto& thread : _sync.data(true).threads)
+    {
+        if (thread.joinable())
+        {
+            lg("joining thread : " << thread.get_id());
+            thread.join();
+        }
+    }
 
     {
         std::lock_guard lk(_sync);
-        for (auto& thread : _sync.data().threads.vec)
-            thread.join();
         _sync.data().threads.clear();
+        _sync.data().initialized = false;
     }
 }
 

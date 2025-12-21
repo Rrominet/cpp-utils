@@ -10,6 +10,7 @@
 #include <queue>
 #include <thread>
 #include <condition_variable>
+#include <optional>
 #include "vec.h"
 
 #include "debug.h"
@@ -87,9 +88,12 @@ namespace th
                 void unlock(){_mtx.unlock();}
                 bool try_lock(){return _mtx.try_lock();}
 
-                T& data()
+                //if fuck_the_lock is true, it will not check the lock, could be useful if you want to access data without locking (but you need to know what you're doing)
+                T& data(bool fuck_the_lock = false)
                 {
 #ifdef mydebug
+                    if (fuck_the_lock)
+                        return _data;
                     if (!_mtx.owner().has_value())
                     {
                         lg("mutex (data) : " << _mtx.name() << " not locked by any thread. This data should be protected by a lock.");
@@ -352,12 +356,13 @@ namespace th
         ml::Vec<std::thread> threads;
         std::queue<std::function<void()>> jobs;
         bool shouldStop = false;
+        bool initialized = false;
     };
 
     class ThreadPool
     {
         private : 
-            unsigned int _max = 0;
+            int _max = 0;
             Cond _qcond;
             std::atomic_int _running = 0;
 
@@ -369,6 +374,8 @@ namespace th
             std::mutex _cb_mtx;
 
             void threadRun();
+
+            void _init();
 
         public : 
             ThreadPool(int max = -1);

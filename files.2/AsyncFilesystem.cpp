@@ -339,6 +339,8 @@ namespace ml
 
     void AsyncFilesystem::_removeDataFromCacheIfTooBigLater(size_t toremove)
     {
+        if (_currentSize < _maxSize)
+            return;
         _pool.run([this, toremove]{_removeDataFromCacheIfTooBig(toremove);});
     }
 }

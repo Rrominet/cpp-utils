@@ -36,6 +36,7 @@ srcs = [
         libs + "/sha3/sha3.c",
         ]
 
+
 fm = build.create("mlapi", sys.argv)
 fm.static = False
 fm.includes = includes
@@ -48,6 +49,8 @@ fm.addToLibs([
     "fmod",
     "fmodL"
     ])
+
+fm.srcs_exclude += ["main.cpp"]
 fm.shared = True
 fm.definitions += ["NO_LOGS"]
 

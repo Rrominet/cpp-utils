@@ -15,12 +15,10 @@ namespace ipc
     std::map<std::string, std::string> _args;
 
     th::Safe<std::unordered_map<std::string, ProcessCmd>> _registers("ipc::registers");
-
     th::Safe<std::vector<std::function<void()>>> _additianalCallbacks("ipc::_additianalCallbacks");
-
     std::atomic_bool _timerEmitThreadRunning = false;
-
     std::atomic<int> _max_event_rate = 16;
+
     struct EventQueue
     {
         // you can't emit an event more often than this (in ms)
