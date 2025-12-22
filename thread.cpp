@@ -94,6 +94,13 @@ namespace th
             std::terminate();
         }
     }
+#else
+    Mutex::Mutex(const std::string& name): _mtx(){}
+    void Mutex::lock(){_mtx.lock();}
+    bool Mutex::try_lock(){return _mtx.try_lock();}
+    void Mutex::unlock(){_mtx.unlock();}
+    void ThreadChecker::check(){}
+
 #endif
 }
 
@@ -121,28 +128,19 @@ void th::ThreadPool::threadRun()
     {
         std::function<void()> job = 0;
         {
-            lg("a");
             std::unique_lock lk(_sync);
-            lg("a");
             _qcond.wait(lk, [this]{
                     return (!_sync.data().jobs.empty() || _sync.data().shouldStop);
                     });
-            lg("a");
             if (_sync.data().shouldStop)
                 return;
-            lg("a");
 
             job = _sync.data().jobs.front();
-            lg("a");
             _sync.data().jobs.pop();
-            lg("a");
         }
         _running ++;
-            lg("a");
         job();
-            lg("a");
         _running --;
-            lg("a");
     }
 }
 

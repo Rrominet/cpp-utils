@@ -22,6 +22,13 @@ namespace geometry
         void deserialize(const json &data);
     };
 
+    template <typename T=float>
+    struct Point
+    {
+        T x;
+        T y;
+    };
+
     template <typename T>
         double squareDistance(const T &xa, const T &ya, 
                 const T &xb, const T &yb)

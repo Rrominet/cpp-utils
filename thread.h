@@ -64,21 +64,33 @@ namespace th
             void check();
     };
 
-    using Mutex = th::Mutex;
-    //using Thread = th::Thread;
 #else
-    using Mutex = std::mutex;
-    //using Thread = std::thread;
+    class Mutex
+    {
+        public :
+            Mutex(const std::string& name="");
+            ~Mutex() = default;
+
+            void lock();
+            bool try_lock();
+            void unlock();
+            std::string name() const{return "";}
+            std::mutex& mtx(){return _mtx;}
+
+        private : 
+            std::mutex _mtx;
+    };
+
     class ThreadChecker
     {
         public : 
             ThreadChecker() = default;
             ~ThreadChecker() = default;
-            void check(){}
+            void check();
     };
 #endif
 
-    template <typename T, typename M=Mutex>
+    template <typename T, typename M=th::Mutex>
         class Safe
         {
             public : 
@@ -117,7 +129,6 @@ namespace th
             private : 
                 T _data;
                 M _mtx;
-
         };
 
     //work only with Safe (not Mutex directly (to FIX))
@@ -132,11 +143,7 @@ namespace th
                 while (!pred()) {
                     lock.unlock(); // Calls your wrapper's unlock (debug code runs)
 
-#ifdef mydebug
                     std::unique_lock<std::mutex> internal_lock(wrapper.mtx().mtx());
-#else
-                    std::unique_lock<std::mutex> internal_lock(wrapper.mtx());
-#endif
                     _cv.wait(internal_lock);
                     internal_lock.unlock();
 

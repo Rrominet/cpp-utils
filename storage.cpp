@@ -7,7 +7,7 @@ namespace storage
 {
     bool _ensureDirsCalled = false;
     json _data;
-    ml::AsyncFilesystem _fs;
+    std::unique_ptr<ml::AsyncFilesystem> _fs;
 
     std::string path()
     {
@@ -28,13 +28,13 @@ namespace storage
     void save(const std::function<void(size_t)>& cb, const std::function<void(const std::string&)>& error)
     {
         assert(_ensureDirsCalled && "storage::init() must be called before storage::save() - from storage::set()"); 
-        _fs.write(path(), _data.dump(), cb, error);
+        _fs->write(path(), _data.dump(), cb, error);
     }
 
     ml::Ret<size_t> save_sync()
     {
         assert(_ensureDirsCalled && "storage::init() must be called before storage::save() - from storage::set()"); 
-        return _fs.write_sync(path(), _data.dump());
+        return _fs->write_sync(path(), _data.dump());
     }
 
     void read()
@@ -47,7 +47,7 @@ namespace storage
 
         try
         {
-            auto rdata = _fs.read_sync(path());
+            auto rdata = _fs->read_sync(path());
             if (!rdata.success)
             {
                 lg("storage::read(): " + rdata.message);
@@ -63,8 +63,9 @@ namespace storage
 
     void init()
     {
+        _fs = std::make_unique<ml::AsyncFilesystem>();
         ensureDirs();
-        _fs.setRoot(os::home() + files::sep() + ".config" + files::sep() + files::execName());
+        _fs->setRoot(os::home() + files::sep() + ".config" + files::sep() + files::execName());
         read();
     }
 

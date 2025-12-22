@@ -157,7 +157,7 @@ class Color
             return c;
         }
 
-        json serialize()
+        json serialize() const
         {
             json data;
             data["r"] = _r;
