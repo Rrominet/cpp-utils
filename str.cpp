@@ -484,7 +484,7 @@ std::string str::fromBool(bool v)
         return 0.0;
     try
     {
-        std::string v_ok = str::replace(v, ".", ",");
+        std::string v_ok = str::replace(v, ",", ".");
         return stof(v_ok);
     }
     catch(...)
@@ -504,7 +504,7 @@ double str::asDouble(const std::string& v)
         return 0.0;
     try
     {
-        std::string v_ok = str::replace(v, ".", ",");
+        std::string v_ok = str::replace(v, ",", ".");
         return stod(v_ok);
     }
     catch(...)

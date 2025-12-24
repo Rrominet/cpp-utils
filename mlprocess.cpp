@@ -1070,42 +1070,47 @@ void process::spawn(const std::string& cmd, const std::string& logFile)
         throw std::runtime_error("process::spawn : fork failed.");
     else if (pid>0) // i'm in parent process
     {
-        lg("I'm the parent, so I continuing my life.");
+        waitpid(pid, nullptr, 0);
         return;
     }
     else if (pid == 0) // i'm in child process
     {
-        if (setsid() < 0)
+        pid_t pid2 = fork();
+        if (pid2 == 0)
         {
-            perror("Failed to create a new session setsid");
-            exit(EXIT_FAILURE);
-        }
-
-        if (logFile.empty())
-        {
-            // Close out the standard file descriptors (stdin, stdout, stderr)
-            close(STDIN_FILENO);
-            close(STDOUT_FILENO);
-            close(STDERR_FILENO);
-        }
-        else // log the stdout and the stderr in a file using the unix api directly. Be careful this won't work on Window but this should never be executed on window so you should be fine.
-        {
-            int logFileId = open(logFile.c_str(), O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
-            if(logFileId < 0) {
-                perror("Failed to open log file");
+            // Grandchild - will be adopted by init
+            if(setsid() < 0)
+            {
+                perror("Failed to create a new session setsid");
                 exit(EXIT_FAILURE);
             }
 
-            dup2(logFileId, STDOUT_FILENO);
-            dup2(logFileId, STDERR_FILENO);
-            close(logFileId);
-        }
+            if (logFile.empty())
+            {
+                // Close out the standard file descriptors (stdin, stdout, stderr)
+                close(STDIN_FILENO);
+                close(STDOUT_FILENO);
+                close(STDERR_FILENO);
+            }
 
-        // Replace the child process image with the desired program.
-        lg2("spawning", cmd);
-        auto arguments = args::simpleParse(cmd);
-        auto args = str::fromStringList(arguments);
-        execvp(arguments[0].c_str(), const_cast<char* const*>(args));
+            else // log the stdout and the stderr in a file using the unix api directly. Be careful this won't work on Window but this should never be executed on window so you should be fine.
+            {
+                int logFileId = open(logFile.c_str(), O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+                if(logFileId < 0) {
+                    perror("Failed to open log file");
+                    exit(EXIT_FAILURE);
+                }
+
+                dup2(logFileId, STDOUT_FILENO);
+                dup2(logFileId, STDERR_FILENO);
+                close(logFileId);
+            }
+
+            //FIXME : not ture the special chars and "" will work here ...
+            execl("/bin/sh", "sh", "-c", cmd.c_str(), nullptr);
+            _exit(1);
+        }
+        _exit(0);
     }
 #endif
 }
