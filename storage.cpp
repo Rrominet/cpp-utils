@@ -39,12 +39,6 @@ namespace storage
 
     void read()
     {
-        if (!files::exists(path()))
-        {
-            lg("storage::read(): " + path() + " does not exist.");
-            return;
-        }
-
         try
         {
             auto rdata = _fs->read_sync(path());

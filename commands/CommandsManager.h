@@ -37,6 +37,13 @@ namespace ml
                         id = name;
 
                     cmd->setId(id);
+#ifdef mydebug
+                    if (_commands.find(id) != _commands.end())
+                    {
+                        lg("Warning : Command " + id + " already exists.");
+                        lg("You just replaced it.");
+                    }
+#endif 
                     _commands[id] = cmd;
                     return std::dynamic_pointer_cast<T>(cmd);
                 }
