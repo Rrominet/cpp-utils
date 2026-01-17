@@ -5,6 +5,7 @@
 #include <any>
 #include "./vec.h"
 #include <nlohmann/json.hpp>
+#include <unordered_map>
 using json = nlohmann::json;
 
 namespace ml
@@ -42,6 +43,13 @@ namespace ml
             virtual json serialize() const;
             virtual void deserialize(const json& j);
 
+            bool hasAttribute(const std::string& name){return _attrs.find(name) != _attrs.end();}
+            std::any& attribute(const std::string& name){return _attrs.at(name);}
+            const std::any& attribute(const std::string& name)const {return _attrs.at(name);}
+            void addAttribute(const std::string& name, const std::any& value){_attrs[name] = value;}
+            void setAttribute(const std::string& name, const std::any& value){_attrs[name] = value;}
+            void removeAttribute(const std::string& name){if(_attrs.find(name) != _attrs.end()) _attrs.erase(name);};
+
         protected : 
             std::function<void(const std::any&)> _exec = 0;
             std::function<void(const std::any&)> _reverse = 0;
@@ -60,6 +68,8 @@ namespace ml
             // this value can be setted in the _exec function to return a value
             // if you doing this, you will need to keep track of the command reference/ptr after its execution to get the returned value with command.returned()
             std::any _returned; //bp cgs
+
+            std::unordered_map<std::string, std::any> _attrs; //bp cg
                               
         public : 
 #include "./Command_gen.h"

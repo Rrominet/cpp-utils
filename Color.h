@@ -52,6 +52,7 @@ class Color
         double s()const {return _s;}
         double v()const {return _v;}
 
+        Color(){}
         Color(const T &r, const T &g, const T &b, const T& a=1){set(r, g, b, a);}
         Color(const T &val, const T& a=1){set(val, val, val, a);}
         ~Color(){}
@@ -181,5 +182,15 @@ class Color
         std::string stringify()
         {
             return serialize().dump();
+        }
+
+        // Overload the == operator
+        bool operator==(const Color& color) const {
+            return (_r == color.r() && _g == color.g() && _b == color.b() && _a == color.a());
+        }
+
+        // Overload the != operator using operator==
+        bool operator!=(const Color& color) const {
+            return !(*this == color);
         }
 };

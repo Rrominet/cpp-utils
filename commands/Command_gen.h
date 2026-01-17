@@ -32,3 +32,7 @@ std::any& returned(){return _returned;}
 const std::any& returned() const {return _returned;}
 void setReturned(const std::any& returned){_returned = returned;}
 
+std::unordered_map<std::string,std::any>& attrs(){return _attrs;}
+const std::unordered_map<std::string,std::any>& attrs() const {return _attrs;}
+
+
