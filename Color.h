@@ -164,7 +164,7 @@ class Color
             data["r"] = _r;
             data["g"] = _g;
             data["b"] = _b;
-            data["a"] = 1.0; // temp
+            data["a"] = _a;
 
             return data;
         }

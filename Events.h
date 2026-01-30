@@ -1,7 +1,7 @@
 #pragma once
 #include <vector>
 #include <string>
-#include <boost/function.hpp>
+#include <functional>
 #include <unordered_map>
 #include <any>
 #include <mutex>
@@ -15,7 +15,7 @@ namespace ml
             Events(){}
             virtual ~Events(){}
 
-            int add(const std::string &type, boost::function<void()> func);
+            int add(const std::string &type, std::function<void()> func);
             void remove(const std::string &type, int id);
             void removeInAll(int id);
             void clear(const std::string &type);
@@ -63,7 +63,7 @@ namespace ml
             std::string wait(const std::vector<std::string>& types);
 
         private : 
-            std::unordered_map<std::string, std::unordered_map<int, boost::function<void()>>> _listeners;
+            std::unordered_map<std::string, std::unordered_map<int, std::function<void()>>> _listeners;
             std::any _data;
             int _id = 1;
             bool _allow = true;

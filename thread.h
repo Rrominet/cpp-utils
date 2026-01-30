@@ -164,7 +164,7 @@ namespace th
     std::string id();
 
     // make the current thread sleep for s seconds
-    void sleep(int s);
+    void sleep(double s);
     // make the current thread sleep for ms miliseconds
     void msleep(int ms);
     // make the current thread sleep for ms microseconds

@@ -4,10 +4,10 @@
 
 namespace ml
 {
-    int Events::add(const std::string &type, boost::function<void()> func)
+    int Events::add(const std::string &type, std::function<void()> func)
     {
         if (_listeners.find(type) == _listeners.end()) 
-            _listeners[type] = std::unordered_map<int, boost::function<void()>>();
+            _listeners[type] = std::unordered_map<int, std::function<void()>>();
 
         _listeners[type][_id] = func;
         int _tmp = _id;

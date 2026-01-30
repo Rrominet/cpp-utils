@@ -247,9 +247,10 @@ int th::maxSystem()
     return maxRunning();
 }
 
-void th::sleep(int s)
+void th::sleep(double s)
 {
-    std::this_thread::sleep_for(std::chrono::seconds(s));
+    int ms = s * 1000.0;
+    std::this_thread::sleep_for(std::chrono::milliseconds(ms));
 }
 
 void th::msleep(int ms)
