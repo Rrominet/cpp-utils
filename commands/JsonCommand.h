@@ -20,8 +20,8 @@ class JsonCommand : public ml::Command
 
         std::string returnString(){return _returnValue.dump();}
 
-        virtual json serialize() const;
-        virtual void deserialize(const json& j);
+        virtual json serialize() const override;
+        virtual void deserialize(const json& j) override;
 
     private : 
         ml::Vec<std::string> _mendatoryKeys; //bp cgs

@@ -440,10 +440,11 @@ namespace ml
                     if (to < 0 || to >= vec.size())
                         return;
 
-                    if (from < to)
-                        std::rotate(vec.rend() - from - 1, vec.rend() - from, vec.rend() - to);
-                    else 
+                    if (from < to) {
                         std::rotate(vec.begin() + from, vec.begin() + from + 1, vec.begin() + to + 1);
+                    } else if (from > to) {
+                        std::rotate(vec.begin() + to, vec.begin() + from, vec.begin() + from + 1);
+                    }
                 }
 
                 void move(const T& elmt, int movement)
@@ -534,6 +535,14 @@ namespace ml
                 void resize(size_t size){vec.resize(size);}
                 void resize(size_t size, const T& elmt){vec.resize(size, elmt);}
                 void swap(size_t i, size_t j){std::swap(vec[i], vec[j]);}
+                void swapByValue(const T& i, const T& j)
+                {
+                    auto idx1 = this->find(i);
+                    auto idx2 = this->find(j);
+                    if (idx1 == -1 || idx2 == -1)
+                        return;
+                    this->swap(idx1, idx2);
+                }
                 void reserve(size_t size){vec.reserve(size);}
 
                 void randomizeOrder()
