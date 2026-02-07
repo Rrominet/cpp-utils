@@ -34,7 +34,8 @@ namespace ipc
     //return false if there is nothing to excecute for example.
     bool execFromArgs();
 
-    void call(Process*p, const std::string &function, const json& args, const std::function<void(const json& response)>& cb=0);
+    //if sync is true, the function will be executed syncronolsy in the backend process, other call will need to wait for it to be executed
+    void call(Process*p, const std::string &function, const json& args, const std::function<void(const json& response)>& cb=0, bool sync=false);
     //reg for register fucntion
     //the json returned by the function is the response from the function that the process caller will receive.
     //the json returned json could follow this standard : 

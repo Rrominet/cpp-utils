@@ -459,23 +459,15 @@ std::string Process::processError()
 
 void Process::write(const std::string& string)
 {
-    lg("a");
     {
-    lg("a");
         th_guard(_syncRuntime);
-    lg("a");
         if (!_syncRuntime.data().running)
             throw std::runtime_error("The process does not run anymore !");
-    lg("a");
     }
 
-    lg("a");
     {
-    lg("a");
         th_guard(_stream_input);
-    lg("a");
         _stream_input.data() << string << std::endl;
-    lg("a");
     }
 }
 

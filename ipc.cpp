@@ -64,7 +64,6 @@ namespace ipc
         if (_registers.data().find(function) != _registers.data().end())
         {
             lg("found function to call : " << function);
-            // this is actually where the function is called
             auto& pcmd = _registers.data()[function];
 
             json res = {};
@@ -125,16 +124,20 @@ namespace ipc
     {
         json to_send = data; 
         to_send["id"] = reqId();
+        lg("Writing to the backend process through ipc : " << to_send.dump());
         p->write(to_send.dump());
         if (cb)
             addToResponse(p, to_send["id"], cb);
     }
 
-    void call(Process*p, const std::string &function, const json& args, const std::function<void(const json& response)>& cb)
+    void call(Process*p, const std::string &function, const json& args, const std::function<void(const json& response)>& cb, bool sync)
     {
         json to_send;
         to_send["function"] = function;
         to_send["args"] = args;
+        if (sync)
+            to_send["sync"] = sync;
+
         if (!cb)
             send(p, to_send);
         else 
@@ -267,19 +270,22 @@ namespace ipc
         auto f = [](const std::string& line)
         {
             lg("received a new line in stdin for ipc, lets go...");
-            if (!line.empty())
-            {
-                json received;
-                try
-                {
-                    received = json::parse(line);
-                }
-                catch (const std::exception& e)
-                {
-                    lg("can't parse the request in json for ipc : " << e.what());
-                    return;
-                }
+            if (line.empty())
+                return;
 
+            json received;
+            try
+            {
+                received = json::parse(line);
+            }
+            catch (const std::exception& e)
+            {
+                lg("can't parse the request in json for ipc : " << e.what());
+                return;
+            }
+
+            auto async = [received]
+            {
                 std::string funcname;
 
                 try
@@ -292,32 +298,37 @@ namespace ipc
                     return;
                 }
 
-                std::lock_guard l(_registers);
-                if (_registers.data().find(funcname) != _registers.data().end())
+                ProcessCmd pcmd;
+                bool found = false;
                 {
-                    lg("found function to call : " << funcname);
-                    // this is actually where the function is called
-                    auto& pcmd = _registers.data()[funcname];
-                    json& args = received["args"];
+                    std::lock_guard l(_registers);
+                    if (_registers.data().find(funcname) != _registers.data().end())
+                    {
+                        lg("found function to call : " << funcname);
+
+                        // this is actually where the function is called
+                        pcmd = _registers.data()[funcname];
+                        found = true;
+                    }
+                }
+
+                if (found)
+                {
+                    const json& args = received["args"];
                     int id = 0;
                     if (received.contains("id"))
                         id = received["id"];
 
-                    auto async = [&pcmd, args, id]
-                    {
-                        json res = {};
-                        if (pcmd.cb)
-                            res = pcmd.onResponse(args, id);
+                    json res = {};
+                    if (pcmd.cb)
+                        res = pcmd.onResponse(args, id);
 
-                        //used for the caller process to know which request it is responding to
-                        res["id"] = id;
-                        res["type"] = "response"; // could be stream...
+                    //used for the caller process to know which request it is responding to
+                    res["id"] = id;
+                    res["type"] = "response"; // could be stream...
 
-                        // send the response via stdout :
-                        std::cout << res.dump() << std::endl;
-                    };
-
-                    std::thread(async).detach();
+                    // send the response via stdout :
+                    std::cout << res.dump() << std::endl;
                 }
 
                 else 
@@ -330,17 +341,23 @@ namespace ipc
                     res["success"] = false;
                     std::cout << res.dump() << std::endl;
                 }
-            }
 
-            std::vector<std::function<void()>> cbs;
-            {
-                std::lock_guard l(_additianalCallbacks);
-                cbs = _additianalCallbacks.data();
-            }
+                std::vector<std::function<void()>> cbs;
+                {
+                    std::lock_guard l(_additianalCallbacks);
+                    cbs = _additianalCallbacks.data();
+                }
 
-            for (const auto& cb : cbs)
-                cb();
+                for (const auto& cb : cbs)
+                    cb();
+            };
+
+            if (received.contains("sync") && received["sync"] == true)
+                async();
+            else 
+                std::thread(async).detach();
         };
+
         return f;
     }
 
