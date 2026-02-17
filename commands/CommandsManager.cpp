@@ -43,21 +43,6 @@ namespace ml
         }
     }
 
-    std::shared_ptr<Command> CommandsManager::command(const std::string& id)
-    {
-        try
-        {
-            return _commands.at(id);
-        }
-        catch(const std::exception& e)
-        {
-            std::string _error = "Command " + id + " not found.";
-            _error += _S"\n" + e.what();
-            lg(_error);
-            throw std::runtime_error(_error);
-        }
-    }
-
     std::vector<std::string> CommandsManager::lsIds()
     {
         std::vector<std::string> ids;

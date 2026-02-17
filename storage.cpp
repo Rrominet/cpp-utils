@@ -6,6 +6,7 @@
 namespace storage
 {
     bool _ensureDirsCalled = false;
+    bool _initCalled = false;
     json _data;
     std::unique_ptr<ml::AsyncFilesystem> _fs;
 
@@ -16,6 +17,8 @@ namespace storage
 
     void ensureDirs()
     {
+        if (_ensureDirsCalled)
+            return;
         if (!files::isDir(os::home() + files::sep() + ".config"))
             files::mkdir(os::home() + files::sep() + ".config");
 
@@ -57,10 +60,13 @@ namespace storage
 
     void init()
     {
+        if (_initCalled)
+            return;
         _fs = std::make_unique<ml::AsyncFilesystem>();
         ensureDirs();
         _fs->setRoot(os::home() + files::sep() + ".config" + files::sep() + files::execName());
         read();
+        _initCalled = true;
     }
 
     json& data()

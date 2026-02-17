@@ -83,12 +83,6 @@ void Process::_init()
     this->addOnEnd(reset_outputs);
     this->addOnTerminate(reset_outputs);
 
-//     this->addOnProcessError([this]{
-//             auto f = [this]{
-//             this->onError("Process Error : " + this->error() + "Debug informations :\n" + this->output());
-//             };
-//             ml::app()->queue(f);
-//             });
 
 #ifdef mydebug
     auto outdebug = [this](const std::string& s)

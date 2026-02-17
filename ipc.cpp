@@ -7,6 +7,7 @@
 #include <map>
 #include "./thread.h"
 #include "./mlprocess.h"
+#include "./files.2/files.h"
 
 namespace ipc
 {
@@ -18,6 +19,10 @@ namespace ipc
     th::Safe<std::vector<std::function<void()>>> _additianalCallbacks("ipc::_additianalCallbacks");
     std::atomic_bool _timerEmitThreadRunning = false;
     std::atomic<int> _max_event_rate = 16;
+
+#ifdef mydebug
+    std::string _ipcdebugfile = "";
+#endif
 
     struct EventQueue
     {
@@ -122,9 +127,18 @@ namespace ipc
 
     void send(Process* p, const json& data, const std::function<void(const json&)>& cb=0)
     {
+#ifdef mydebug
+        if (_ipcdebugfile.empty())
+            _ipcdebugfile = files::execDir() + files::sep() + "ipc.log";
+        if (_reqId == 0)
+            files::remove(_ipcdebugfile);
+#endif
         json to_send = data; 
         to_send["id"] = reqId();
         lg("Writing to the backend process through ipc : " << to_send.dump());
+#ifdef mydebug
+        files::append(_ipcdebugfile, to_send.dump() + "\n");
+#endif
         p->write(to_send.dump());
         if (cb)
             addToResponse(p, to_send["id"], cb);

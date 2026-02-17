@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include "./debug.h"
 
 namespace ml
 {
@@ -29,6 +30,7 @@ namespace ml
         template <typename T=bool>
             Ret<T> failure(const std::string& message="")
             {
+                lg((std::string)"Failure : " + message); 
                 Ret<T> ret;
                 ret.message = message;
                 ret.success = false;

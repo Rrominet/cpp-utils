@@ -2,6 +2,7 @@
 #include "./Command.h"
 #include "./MacroCommand.h"
 #include "./vec.h"
+#include "./str.h"
 #include "../HistoryStack.h"
 #include <unordered_map>
 
@@ -62,7 +63,32 @@ namespace ml
                     return std::dynamic_pointer_cast<T>(cmd);
                 }
 
-            
+            //put before deserialize
+            template<typename T=Command>
+            std::shared_ptr<T> command(const std::string& id)
+            {
+                std::shared_ptr<Command> c;
+                try
+                {
+                   c = _commands.at(id);
+                }
+                catch(const std::exception& e)
+                {
+                    std::string _error = "Command " + id + " not found.";
+                    _error += _S"\n" + e.what();
+                    lg(_error);
+                    throw std::runtime_error(_error);
+                }
+                std::shared_ptr<T> cmd = std::dynamic_pointer_cast<T>(c);
+                if (!cmd)
+                {
+                    lg("Command " + id + " founded but is not of type " + typeid(T).name());
+                    throw std::runtime_error("Command " + id + " founded but is not of type " + typeid(T).name());
+                }
+                return cmd;
+            }
+
+
             // the template are here because these type are treated for mlgui only.
             // if not setted, they won't be treated.
             template<typename Gui=void, typename GuiBackend=void>
@@ -118,8 +144,6 @@ namespace ml
 
             std::shared_ptr<Command> exec(const std::string& id);
             std::shared_ptr<Command> reverse(const std::string& id);
-
-            std::shared_ptr<Command> command(const std::string& id);
             bool exists(const std::string& id) { return _commands.find(id) != _commands.end(); }
             bool has(const std::string& id) { return this->exists(id); }
             void removeCommand(const std::string& id);
