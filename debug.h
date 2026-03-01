@@ -15,7 +15,7 @@ namespace db
     template <typename T>
         static void log(const std::vector<T> &vec)
         {
-            for (auto &c : vec)
+            for (const auto &c : vec)
                 lg(c);             
         }
 

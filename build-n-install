@@ -87,7 +87,7 @@ def main():
     run("chmod +x ./make")
     os.makedirs("build", exist_ok=True)
     os.chdir("build")
-    run(f"../make release libs=\"{dpdir}\"")
+    run(f"../make release keep-same libs=\"{dpdir}\"")
     run("chmod 755 ./libmlapi.so")
 
     libpath = "/usr/local/lib/libmlapi.so"
