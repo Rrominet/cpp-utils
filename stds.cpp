@@ -1,4 +1,5 @@
 #include "stds.h"
+#include <csignal>
 #include <thread>
 
 #include <iostream>
@@ -7,6 +8,8 @@
 #include <unistd.h>
 #include <string>
 #include <cstring>
+
+#include <sys/prctl.h>
 
 namespace stds
 {
@@ -25,6 +28,10 @@ namespace stds
     {
         if (_init)
             return;
+
+#ifdef __linux__
+        prctl(PR_SET_PDEATHSIG, SIGTERM);
+#endif
         
 // The first argument is the initial counter value (0 is fine). The flags are:
 // - `EFD_NONBLOCK`: makes reads/writes non-blocking
@@ -57,7 +64,7 @@ namespace stds
                 perror("poll");
                 break;
             }
-            if (_fds[0].revents & POLLIN)
+            if (_fds[0].revents & (POLLIN | POLLHUP | POLLERR))
             {
                 if(std::getline(std::cin, line))
                     newLine(line);

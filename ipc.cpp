@@ -384,6 +384,7 @@ namespace ipc
 
     void initAsReceiver()
     {
+        stds::init();
         stds::read_in_async(onStdInLine());
         lg("initAsReceiver done.");
     }
