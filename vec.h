@@ -287,6 +287,9 @@ namespace ml
                 void push_back(const T& v){vec.push_back(v);}
                 void push_back(T&& v){vec.push_back(std::move(v));}
 
+                template<class... Args>
+                void emplace_back(Args&&... args){vec.emplace_back(args...);}
+
                 void push(const T& v){vec.push_back(v);}
                 void push(T&& v){vec.push_back(std::move(v));}
 

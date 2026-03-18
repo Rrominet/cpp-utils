@@ -1,0 +1,82 @@
+
+<!DOCTYPE html>
+<html lang='fr'>
+<head>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1'>
+    <title>Readme</title>
+    <link rel='stylesheet' href='/opt/fxhtml/fxhtml.css'>
+</head>
+<body>
+<h1 id="cpp-utils">cpp-utils</h1>
+<p>It’s a collection of usefull functions and classes for c++
+projects<br />
+All the cpp projects I’ve done so far are dependent on it.</p>
+<blockquote>
+<p>[!NOTE]<br />
+This library has only been tested on linux for now.<br />
+All the following instructions are for linux (particulary debian based
+system, but should work on all linuxes)</p>
+</blockquote>
+<h1 id="installation">Installation</h1>
+<p>This repo need to be build as a shared library (.so)<br />
+&gt; [!NOTE]<br />
+&gt; In a near future, you’ll be able to grab the prebuild
+binaries.<br />
+&gt; But for now, you’ll have to build it yourself.<br />
+&gt; You’ll see it’s pretty straightforward, I made you a script that do
+all for you. <em>(I know, I know, I’m too good)</em></p>
+<p>So, to build it yourself, nothing easier.<br />
+<code>git clone</code> this repo and execute the file
+<code>build-n-install</code> as <code>sudo</code>.</p>
+<p>That’s it.<br />
+I told you it was pretty straightforward.</p>
+<p>For your convinience here the code that you can copy and past in a
+terminal directly :</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> clone https://github.com/Rrominet/cpp-utils.git</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> cpp-utils</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> chmod +x ./build-n-install</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> ./build-n-install</span></code></pre></div>
+<blockquote>
+<p>[!NOTE]<br />
+The script should install all the packages needed for the compilation
+process for any major distros.<br />
+If you have an error, install the packages manually.<br />
+FYI, here are the libs installed by the script :<br />
+<code>build-essential</code> <code>git</code> <code>gcc</code>
+<code>g++</code> <code>wget</code> <code>zip</code> <code>unzip</code>
+<code>libboost-all-dev</code></p>
+</blockquote>
+<p>After the installtion done, you’ll see a new directory called
+<code>cpp-utils_dependencies</code> in the parent directory of the
+<code>cpp-utils</code> local repo.</p>
+<p>If you just want to use the <code>libmlapi</code> (cpp-utils) library
+as a shared lib, you can remove the
+<code>cpp-utils_dependencies</code>.<br />
+But if you want to rebuild it or change the code, or use it as a lib in
+one of your own project, you need to keep it.<br />
+<em>(It contains the headers of the dependencies needed for the
+compilation process.)</em></p>
+<h1 id="usage">Usage</h1>
+<p>For now, it’s usage is basicly a dependency for the other cpp
+projects I’ve done so far.<br />
+The projects dependent on it will basicly clone this repo and do the
+installation directly.</p>
+<p>You also can use it as a shared lib on your own project but I need to
+write the documentation for that.<br />
+Waiting for this to happen, you can always check the content of the <a
+href="https://github.com/Rrominet/cpp-utils/blob/main/make">make</a>
+file to see the different <code>includes</code> and libraries links you
+need to do.<br />
+The <code>make</code> script is a file that run <code>fxmake</code>, my
+own builder that you can find in <a
+href="https://github.com/Rrominet/py-utils/tree/main/build">this
+repo</a>.</p>
+<h1 id="todo">TODO</h1>
+<p>Well, a lot! Like a doc and a process to link the lib in your custom
+projects.<br />
+Also a release system so you can grab the binaries instead of building
+it yourself.</p>
+</body>
+</html>

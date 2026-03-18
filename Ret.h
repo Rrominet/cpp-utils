@@ -30,7 +30,7 @@ namespace ml
         template <typename T=bool>
             Ret<T> failure(const std::string& message="")
             {
-                lg((std::string)"Failure : " + message); 
+                lg((std::string)"ml::Ret Failure : " + message); 
                 Ret<T> ret;
                 ret.message = message;
                 ret.success = false;
