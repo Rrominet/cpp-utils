@@ -1,6 +1,7 @@
 #pragma once
+#include "../thread.h"
 #include <boost/asio.hpp>
-#include <boost/function.hpp>
+#include <functional>
 using boost::asio::ip::tcp;
 
 class TcpServer
@@ -11,52 +12,38 @@ class TcpServer
             IP4 = 1,
             IP6,
         };
-    protected : 
-        int _port;
-        boost::asio::io_service _io_service;
-        tcp::acceptor* _acceptor=nullptr;
-        Mode _mode;
-        std::string _request;
-        std::string _response;
 
-        long _bufSize = 1024*1024*16; // 16KB
-        std::vector <boost::function<void (std::string)>> _onRequest;
-
-        // the arg is the request and the returned value is the respond !
-        std::vector <boost::function<std::string (std::string)>> _onRespond;
-
-    public : 
-
-        TcpServer(int port=1024, Mode mode=IP4);
+        TcpServer(int port=1024, Mode mode=IP4, bool async=false);
         virtual ~TcpServer();
 
-        virtual void run();
-        virtual void parseRequest(std::string request){}
-
-        int port() const {return _port;}
-        void setPort(const int &port){_port = port;}
+        void run();
 
         boost::asio::io_service& ioservice(){return _io_service;}
         tcp::acceptor& acceptor()const{return *_acceptor;}
-        Mode mode()const {return _mode;}
 
-        long bufSize() const {return _bufSize;}
-        void setBufSize(const long &bufSize){_bufSize = bufSize;}
+        void addOnRequest(std::function<std::string (const std::string&)> f){_onRequest.push_back(f);}
+        void addOnError(std::function<void (const std::string&)> f){_onError.push_back(f);}
 
-        virtual std::string request() {return _request;}
+        virtual void handleSocket(std::shared_ptr<tcp::socket> s);
+        void write(std::shared_ptr<tcp::socket> s, const std::string& res);
 
-        std::string response()const {return _response;}
-        void setResponse(const std::string &response){_response = response;}
+    protected : 
+        int _port; //bp cgs
+        boost::asio::io_service _io_service;
+        std::unique_ptr<tcp::acceptor> _acceptor=nullptr;
+        Mode _mode; //bp cg
+                    
+        bool _async = false; //bp cg
+        th::ThreadPool _pool;
 
-        void addOnRequest(boost::function<void (std::string)> f){_onRequest.push_back(f);}
+        long _bufSize = 1024*1024*16; //bp cgs
 
-        std::vector<boost::function<void(std::string)>>& onRequest(){return _onRequest;}
+        //the arg is the request received and the return is the response to send back.
+        std::vector <std::function<std::string (const std::string&)>> _onRequest;
+        std::vector <std::function<void (const std::string&)>> _onError;
 
-        void addOnRespond(boost::function<std::string (std::string)> f){_onRespond.push_back(f);}
+        void _execOnError(const std::string& error){for (auto &f : _onError) f(error);}
 
-        std::vector<boost::function<std::string(std::string)>>& onRespond(){return _onRespond;}
-
-        virtual std::string formatRes(const std::string& res) const{return res;} 
-        virtual void onRequestEnd(){}
-
+    public : 
+#include "./TcpServer_gen.h"
 };

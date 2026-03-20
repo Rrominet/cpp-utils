@@ -8,6 +8,7 @@
 #include <vector>
 #include "mlprocess.h"
 #include "os.h"
+#include "network/uri.h"
 
 #ifdef _WIN32
 #pragma warning(disable : 4996) // need it to exec getenv on Window
@@ -15,7 +16,7 @@
 
 namespace network
 {
-    std::vector<boost::function<void()>> _onDec;
+    std::vector<std::function<void()>> _onDec;
     bool _signalConnectionMade = false;
 
     void signalHandler(int signum)
@@ -121,7 +122,7 @@ namespace network
         return _r;
     }
 
-    void addOnDeconnection(boost::function <void ()>f)
+    void addOnDeconnection(std::function <void ()>f)
     {
         _onDec.push_back(f);
     }
@@ -273,5 +274,72 @@ std::string network::client_request_as_http(const std::string& path, const std::
 
     if (method == POST)
         _r += data;
+    return _r;
+}
+
+std::unordered_map<std::string, std::string> network::httpHeaders(std::string requestBegining)
+{
+    std::unordered_map<std::string, std::string> _r;
+    if (!str::contains(requestBegining, "HTTP/"))
+        return _r;
+
+    auto tmp = str::split(requestBegining, "\r\n\r\n");
+
+    if (tmp.size()>1 && !tmp[1].empty())
+        _r["content"] = tmp[1];
+
+    std::string headers = tmp[0];
+    tmp = str::split(headers, "\r\n");
+    auto tmp2 = str::split(tmp[0], " ");
+    _r["method"] = tmp2[0];
+
+    if (tmp2.size()>1)
+    {
+        auto tmp3 = str::split(tmp2[1], "?");
+        _r["path"] = uri::decode(tmp3[0]);
+        if (tmp3.size()>1)
+        {
+            _r["get"] = uri::decode(tmp3[1]);
+            if (_r.find("content") == _r.end())
+                _r["content"] = _r["get"];
+        }
+    }
+    if (tmp2.size()>2)
+        _r["protocol"] = tmp2[2];
+
+    for (int i = 1; i < tmp.size(); i++)
+    {
+        // Find the first colon separator
+        size_t colonPos = tmp[i].find(':');
+
+        // Skip malformed headers without a colon
+        if (colonPos == std::string::npos)
+            continue;
+
+        // Extract key (before colon)
+        std::string key = tmp[i].substr(0, colonPos);
+
+        // Extract value (after colon), trimming leading/trailing spaces
+        std::string val;
+        if (colonPos + 1 < tmp[i].size())
+        {
+            // Skip the colon and any leading spaces
+            size_t valueStart = colonPos + 1;
+            while (valueStart < tmp[i].size() && tmp[i][valueStart] == ' ')
+                valueStart++;
+
+            val = tmp[i].substr(valueStart);
+
+            // Optionally trim trailing spaces
+            size_t valueEnd = val.find_last_not_of(" \t");
+            if (valueEnd != std::string::npos)
+                val = val.substr(0, valueEnd + 1);
+        }
+
+        // Only add non-empty keys
+        if (!key.empty())
+            _r[key] = val;
+    }
+
     return _r;
 }

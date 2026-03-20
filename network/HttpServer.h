@@ -1,14 +1,12 @@
 #pragma once
-#include "TcpServer.h"
-#include <unordered_map>
-#include <boost/beast/core.hpp>
-#include <mutex>
-#include "network.h"
-#include "vec.h"
+#include "./TcpServer.h"
+#include "../vec.h"
+
 #include <nlohmann/json.hpp>
+using json = nlohmann::json;
+
 #include "../commands/CommandsManager.h"
 #include "../commands/JsonCommand.h"
-using json = nlohmann::json;
 //
 // To add a function to the server, use the addFuncByPath function.
 // The path is simply the path in the URL.
@@ -18,6 +16,9 @@ using json = nlohmann::json;
 //
 // By default, all the functions should be implemented in setFuncsByPaths() but you can add new ones anywhere. If you're not sure, just add them at the end of setFuncsByPaths()
 // If an exception in thrown in your function, the server will send a json with {"success": false, "message": "error message from the exception"}
+//
+// Use the createJsonCommand function to create a JsonCommand that will be automaticly executed on the good path with the json body request as argument (it calls addFuncByPath inside.)
+// createjsonCommand is certainly the onw you want to use the most.
 //
 // That's it, good luck ! :)
 // this server is made for HTTP/1.1 requests.
@@ -42,6 +43,8 @@ using json = nlohmann::json;
 //     this->setOnSSE(sse);
 //     A client can listen to sse simply by calling the route /sse
 
+
+//TODO : implement SSE
 struct HttpResponse
 {
     int code = 200;
@@ -51,78 +54,19 @@ struct HttpResponse
 
 class HttpServer : public TcpServer
 {
-    protected : 
-        HttpResponse _httpResponse;
-        std::mutex _socketMtx;
-        std::unordered_map<std::string, std::function<std::string(std::unordered_map<std::string, std::string>&)>> _pathsFuncs;
-        std::function<void(tcp::socket&, std::unordered_map<std::string, std::string>&)> _onSSE = 0;
+    public:
+        HttpServer(int port, TcpServer::Mode mode, bool async);
+        virtual ~HttpServer() = default;
 
-        ml::CommandsManager _cmds; //bp cg
+        //All the real work is happenning here : 
+        //------------------------------------
+        virtual void handleSocket(std::shared_ptr<tcp::socket> s) override;
+        std::string readSocket(std::shared_ptr<tcp::socket> s, size_t length, const std::string& separator="\r\n\r\n");
+        //------------------------------------
 
-    public : 
-        // executed after receiving a request just before sending the response the response body will be the returned std::string;
-        ml::Vec<std::function<std::string(std::unordered_map<std::string, std::string>)>> httpResponses;
-
-        HttpServer(int port=8080, Mode mode=IP4);
-
-        template<typename Server>
-        static Server* create(int argc, char *argv[])
-        {
-            std::string error;
-            if (argc < 2)
-            {
-                error += "Usage: " + std::string(argv[0]) + " <port>\n";
-                error += "No port given.";
-                throw std::invalid_argument(error);
-            }
-
-            int port = 0;
-            try
-            {
-                port = std::stoi(argv[1]);
-            }
-            catch(const std::exception& e)
-            {
-                error += "Failed to convert the port to a integer...\n";
-                error += "Port given " + std::string(argv[1]) + "\n";
-                error += "Error : " + std::string(e.what()) + "\n";
-                throw std::invalid_argument(error);
-            }
-            return new Server(port);
-        }
-
-        void _construct();
-        virtual ~HttpServer(){}
-
-        std::unordered_map<std::string, std::string> parsedHeaders(std::string requestBegining);
-
-        std::string readSocket(tcp::socket& socket, long length, boost::system::error_code& error, const std::string separator="");
-        void write(tcp::socket& socket, const std::string& res, boost::system::error_code& error);
-        void write(tcp::socket& socket, const std::string& res);
-
-        std::string request(std::unordered_map<std::string, std::string>& httpdata);
-
-        HttpResponse& httpResponse(){return _httpResponse;}
-
-        virtual std::string formatRes(const std::string& res) const override;
-
-        virtual void run() override;
-        std::string root(std::unordered_map<std::string, std::string>& httpdata);
-
-        virtual void execOnRequest(const std::string& request);
-        virtual void execAllCallbacks(tcp::socket* s, const std::string& request, std::unordered_map<std::string, std::string>& httpdata);
-
-        virtual void execOnRespond(tcp::socket& socket, std::unordered_map<std::string, std::string>& httpdata, boost::system::error_code& error);
-
-        virtual bool is_async() const {return false;}
-
-        // need to be reimplemented in your child class for your server to actually do something
-        // you can add a path reaction by using addFuncByPath
-        // you need to call it in your constructor to (or equivalent), it is not called by default.
-        virtual void setFuncsByPaths(){}
-        virtual void addFuncByPath(std::string path, const std::function<std::string(std::unordered_map<std::string, std::string>&)>& func);
-        virtual void addFuncByPath(std::string path, const std::function<std::string()>& func);
-        virtual void addJsonFuncByPath(std::string path, const std::function<std::string(const json&)>& func);
+        //change this before accepting requests.
+        //not during request processing if the server is async.
+        HttpResponse& httpResponse() { return _httpResponse; }
 
         json jsonBody(std::unordered_map<std::string, std::string>& httpdata);
 
@@ -133,22 +77,28 @@ class HttpServer : public TcpServer
         std::string failure( json& data) const;
         std::string failure(const std::string& msg) const;
 
-        // exec one requestLoop (in run)
-        // separated to be async in the AsyncHttpServer version (in run)
-        void onRequestLoop(tcp::socket& s, long bufSize);
-
         void successCmd(std::shared_ptr<JsonCommand> cmd, const std::string& message="") const;
         void failureCmd(std::shared_ptr<JsonCommand> cmd, const std::string& message="") const;
 
         void successCmdJson(std::shared_ptr<JsonCommand> cmd, const json& j) const;
         void failureCmdJson(std::shared_ptr<JsonCommand> cmd, const json& j) const;
-
         std::shared_ptr<JsonCommand> createJsonCommand(const std::string& path);
 
-        void setOnSSE(const std::function<void(tcp::socket&, std::unordered_map<std::string, std::string>&)>& func) {_onSSE = func;}
-        void sendAsSSE(tcp::socket& socket, const json& data);
-        void sendAsSSE(tcp::socket& socket, const std::string& data);
+        void addFuncByPath(std::string path, const std::function<std::string(std::unordered_map<std::string, std::string>&)>& func);
+        void addFuncByPath(std::string path, const std::function<std::string()>& func);
+        void addJsonFuncByPath(std::string path, const std::function<std::string(const json&)>& func);
 
-    public : 
-#include "./HttpServer_gen.h"
+        std::string root(std::unordered_map<std::string, std::string>& httpdata);
+
+        //TODO: implement
+//         void setOnSSE(const std::function<void(tcp::socket&, std::unordered_map<std::string, std::string>&)>& func) {_onSSE = func;}
+//         void sendAsSSE(tcp::socket& socket, const json& data);
+//         void sendAsSSE(tcp::socket& socket, const std::string& data);
+
+    protected : 
+        ml::Vec<std::function<std::string(std::unordered_map<std::string, std::string>&)>> _httpResponses;
+        std::unordered_map<std::string, std::function<std::string(std::unordered_map<std::string, std::string>&)>> _pathsFuncs;
+        HttpResponse _httpResponse;
+        ml::CommandsManager _cmds; //bp cg
 };
+

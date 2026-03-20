@@ -8,6 +8,11 @@ namespace ml
         // in seconds from 1970
         int64_t time();
         int64_t now();
+        
+        // Convert time periods to seconds
+        int64_t hours(int64_t nb);
+        int64_t minutes(int64_t nb);
+        int64_t days(int64_t nb);
 
         // in miliseconds
         int64_t mlnow();

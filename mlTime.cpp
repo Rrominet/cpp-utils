@@ -244,3 +244,19 @@ std::string  ml::time::dateTimeCleaned(std::string str)
     // Combine with " - " separator
     return formattedDate + " - " + formattedTime;
 }
+
+// Convert time periods to seconds
+int64_t ml::time::hours(int64_t nb)
+{
+    return nb * 3600;
+}
+
+int64_t ml::time::minutes(int64_t nb)
+{
+    return nb * 60;
+}
+
+int64_t ml::time::days(int64_t nb)
+{
+    return nb * 86400;
+}

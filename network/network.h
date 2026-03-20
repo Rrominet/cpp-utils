@@ -6,7 +6,8 @@ using json = nlohmann::json;
 #include <type_traits>
 #include "debug.h"
 #include <csignal>
-#include <boost/function.hpp>
+#include <functional>
+#include <unordered_map>
 
 namespace network
 {
@@ -20,7 +21,7 @@ namespace network
     void sendJSONHeaders(long contentSize = -1, bool close=false);
     void sendHtmlHeaders(bool close=false);
 
-    void addOnDeconnection(boost::function <void ()>f);
+    void addOnDeconnection(std::function <void ()>f);
 
     //need to call this function periodicly to check if the client is still connected.
     //If not Apache will send to this program a SIGTERM signal
@@ -30,7 +31,7 @@ namespace network
     //infos in $_GET
     std::unordered_map<std::string, std::string> get(const std::string& getstring="");
 
-    //f is the function that will be execute at each loop, its need to renturn a json wich is the data send by the SSE (its take no argument)
+    //f is the function that will be execute at each loop, its need to return a json wich is the data send by the SSE (its take no argument)
     //interval is in milisecond
     //quit is a function retunring a bool that when is true will breake the while stream loop
     //This function is sync and will block until the stream loop is broken with the quit function or if the client disconnect
@@ -91,4 +92,6 @@ namespace network
     std::string sse_headers();
     std::string sse_formated(const std::string& event, const std::string& data, std::string id, int retry=-1);
     std::string sse_formated(const std::string& event, const json& data, std::string id, int retry=-1);
+
+    std::unordered_map<std::string, std::string> httpHeaders(std::string requestBegining);
 }
