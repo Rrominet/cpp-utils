@@ -44,7 +44,7 @@ fm.addToSrcs(srcs)
 fm.addToLibs([
     "pthread", 
     "stdc++fs",
-    "boost_filesystem"
+    "boost_filesystem",
     libs + "/FreeImagePlus-build/libfreeimageplus.a",
     "fmod",
     "fmodL"

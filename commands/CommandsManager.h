@@ -28,10 +28,6 @@ namespace ml
                         lg("exec is def, so set it");
                         cmd->setExec(exec);
                     }
-                    else 
-                    {
-                        lg("exec is not def, so do nothing");
-                    }
                     cmd->setArgs(args);
 
                     if (id == "")

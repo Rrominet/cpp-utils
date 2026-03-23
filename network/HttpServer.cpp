@@ -1,10 +1,19 @@
 #include "./HttpServer.h"
 #include "network/network.h"
+#include <mutex>
 
 HttpServer::HttpServer(int port,TcpServer::Mode mode,bool async) : TcpServer(port,mode,async)
 {
     _bufSize = 8128;
-    _httpResponse.contentType = "application/json";
+    {
+        std::lock_guard lk(_httpResponse);
+        _httpResponse.data().contentType = "application/json";
+    }
+
+    {
+        std::lock_guard lk(_onSSE);
+        _onSSE.data() = 0;
+    }
 
     auto main_cb = [this](std::unordered_map<std::string, std::string>& httpdata) -> std::string
     {
@@ -12,7 +21,12 @@ HttpServer::HttpServer(int port,TcpServer::Mode mode,bool async) : TcpServer(por
             return "{\"success\": false, \"message\": \"No path given.\"}";
 
         std::string res;
-        if (_pathsFuncs.find(httpdata.at("path")) == _pathsFuncs.end())
+        std::unordered_map<std::string, std::function<std::string(std::unordered_map<std::string, std::string>&)>> pathsfuncs;
+        {
+            std::lock_guard lk(_pathsFuncs);
+            pathsfuncs = _pathsFuncs.data();
+        }
+        if (pathsfuncs.find(httpdata.at("path")) == pathsfuncs.end())
         {
             res = "{\"success\": false, \"message\": \"path " + httpdata.at("path") + " not found.\"}";
             return res;
@@ -20,7 +34,7 @@ HttpServer::HttpServer(int port,TcpServer::Mode mode,bool async) : TcpServer(por
 
         try
         {
-            res = _pathsFuncs[httpdata.at("path")](httpdata);
+            res = pathsfuncs[httpdata.at("path")](httpdata);
             return res;
         }
         catch(const std::exception& e)
@@ -28,8 +42,14 @@ HttpServer::HttpServer(int port,TcpServer::Mode mode,bool async) : TcpServer(por
             return "{\"success\": false, \"message\": \"" + std::string(e.what()) + "\"}";
         }
     };
-    _httpResponses.push(main_cb);
+
+    {
+        std::lock_guard lk(_httpResponses);
+        _httpResponses.data().push(main_cb);
+    }
 }
+
+HttpServer::~HttpServer(){}
 
 void HttpServer::handleSocket(std::shared_ptr<tcp::socket> s)
 {
@@ -59,10 +79,38 @@ void HttpServer::handleSocket(std::shared_ptr<tcp::socket> s)
         }
     }
 
-    for (const auto& f : _httpResponses)
+    if (httpdata.find("path") != httpdata.end() && httpdata["path"] == "/sse")
+    {
+        std::function<void(std::shared_ptr<tcp::socket>, std::unordered_map<std::string, std::string>&)> onsse = 0;
+        {
+            std::lock_guard lk(_onSSE);
+            onsse = _onSSE.data();
+        }
+
+        if (onsse)
+        {
+            auto hds = network::sse_headers();
+            this->write(s, hds);
+            onsse(s, httpdata);
+        }
+    }
+
+    ml::Vec<std::function<std::string(std::unordered_map<std::string, std::string>&)>> httpresponses;
+    {
+        std::lock_guard lk(_httpResponses);
+        httpresponses = _httpResponses.data();
+    }
+
+    HttpResponse httpresponse;
+    {
+        std::lock_guard lk(_httpResponse);
+        httpresponse = _httpResponse.data();
+    }
+
+    for (const auto& f : httpresponses)
     {
         auto res = f(httpdata);
-        res = network::http_formated(res, _httpResponse.contentType, _httpResponse.cors, _httpResponse.code);
+        res = network::http_formated(res, httpresponse.contentType, httpresponse.cors, httpresponse.code);
         res += "\n";
         this->write(s, res);
     }
@@ -72,26 +120,26 @@ std::string HttpServer::readSocket(std::shared_ptr<tcp::socket> s, size_t length
 {
     std::string readed;
     readed.reserve(length); // Pre-allocate memory
-    
+
     std::vector<char> buf(std::min(static_cast<size_t>(_bufSize), length));
-    
+
     boost::system::error_code ec;
     while (readed.size() < length && !ec) 
     {
         size_t len = s->read_some(boost::asio::buffer(buf), ec);
-        
+
         if (ec) 
         {
             if (ec != boost::asio::error::eof) 
                 _execOnError(ec.message());
         }
-        
+
         readed.append(buf.data(), len);
-        
+
         if (!separator.empty() && readed.find(separator) != std::string::npos) 
             break;
     }
-    
+
     return readed;
 }
 
@@ -168,21 +216,42 @@ void HttpServer::failureCmdJson(std::shared_ptr<JsonCommand> cmd, const json& j)
 
 std::shared_ptr<JsonCommand> HttpServer::createJsonCommand(const std::string& path)
 {
-    auto cmd = _cmds.createCommand<JsonCommand>(path); 	
-    this->addJsonFuncByPath(path, [this, path, cmd] (const json& httpdata) mutable -> std::string
-            {
-                if (httpdata["method"] == "OPTIONS")
-                    return "";
-                cmd->setJsonArgs(httpdata["content"]);
-                cmd->exec();
-                return cmd->returnString() + "\n";
-            });
+    std::lock_guard lk(_cmds);
+    auto cmd = _cmds.data().createCommand<JsonCommand>(path); 	
+    auto f = [this, path, cmd] (const json& httpdata) mutable -> std::string
+    {
+        JsonCommand cmd_cp;
+        {
+            std::lock_guard lk(_cmds);
+            cmd_cp = *cmd;
+        }
+        try
+        {
+            if (httpdata.contains("method") && httpdata["method"] == "OPTIONS")
+                return "";
+            if (httpdata.contains("content"))
+                cmd_cp.setJsonArgs(httpdata["content"]);
+            else 
+                cmd_cp.setJsonArgs(json::object());
+            cmd_cp.exec();
+            return cmd_cp.returnString() + "\n";
+        }
+        catch(const std::exception& e)
+        {
+            lg(e.what());
+            return "{\"success\": false, \"message\": \"" + (std::string)e.what() + "\"}";
+        }
+    };
+
+    this->addJsonFuncByPath(path,f);
     return cmd;
+
 }
 
 void HttpServer::addFuncByPath(std::string path, const std::function<std::string(std::unordered_map<std::string, std::string>&)>& func)
 {
-    _pathsFuncs[path] = [func](std::unordered_map<std::string, std::string>& data) -> std::string
+    std::lock_guard lk(_pathsFuncs);
+    _pathsFuncs.data()[path] = [func](std::unordered_map<std::string, std::string>& data) -> std::string
     {
         try
         {
@@ -197,7 +266,8 @@ void HttpServer::addFuncByPath(std::string path, const std::function<std::string
 
 void HttpServer::addFuncByPath(std::string path, const std::function<std::string()>& func)
 {
-    _pathsFuncs[path] = [func](std::unordered_map<std::string, std::string>& data) -> std::string
+    std::lock_guard lk(_pathsFuncs);
+    _pathsFuncs.data()[path] = [func](std::unordered_map<std::string, std::string>& data) -> std::string
     {
         try
         {
@@ -212,7 +282,8 @@ void HttpServer::addFuncByPath(std::string path, const std::function<std::string
 
 void HttpServer::addJsonFuncByPath(std::string path, const std::function<std::string(const json&)>& func)
 {
-    _pathsFuncs[path] = [this, func](std::unordered_map<std::string, std::string>& data) -> std::string
+    std::lock_guard lk(_pathsFuncs);
+    _pathsFuncs.data()[path] = [this, func](std::unordered_map<std::string, std::string>& data) -> std::string
     {
         try
         {
@@ -232,3 +303,32 @@ std::string HttpServer::root(std::unordered_map<std::string, std::string>& httpd
     return httpdata["path"];
 }
 
+void HttpServer::setOnSSE(const std::function<void(std::shared_ptr<tcp::socket>, std::unordered_map<std::string, std::string>&)>& func)
+{
+    std::lock_guard lk(_onSSE);
+    _onSSE.data() = func;
+}
+
+bool HttpServer::sendAsSSE(std::shared_ptr<tcp::socket> socket,const json& data)
+{
+    boost::system::error_code ec;
+
+    auto s = network::sse_formated("message", data, "");
+    s+= "\n";
+    this->write(socket, s, ec);
+
+    return !(ec == boost::asio::error::eof || 
+            ec == boost::asio::error::connection_reset ||
+            ec == boost::asio::error::broken_pipe);
+}
+
+bool HttpServer::sendAsSSE(std::shared_ptr<tcp::socket> socket,const std::string& data)
+{
+    boost::system::error_code ec;
+    auto s = network::sse_formated("message", data, "");
+    s+= "\n";
+    this->write(socket, s);
+    return !(ec == boost::asio::error::eof || 
+            ec == boost::asio::error::connection_reset ||
+            ec == boost::asio::error::broken_pipe);
+}

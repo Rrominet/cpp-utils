@@ -21,11 +21,12 @@ class TcpServer
         boost::asio::io_service& ioservice(){return _io_service;}
         tcp::acceptor& acceptor()const{return *_acceptor;}
 
-        void addOnRequest(std::function<std::string (const std::string&)> f){_onRequest.push_back(f);}
-        void addOnError(std::function<void (const std::string&)> f){_onError.push_back(f);}
+        void addOnRequest(std::function<std::string (const std::string&)> f);
+        void addOnError(std::function<void (const std::string&)> f);
 
         virtual void handleSocket(std::shared_ptr<tcp::socket> s);
         void write(std::shared_ptr<tcp::socket> s, const std::string& res);
+        void write(std::shared_ptr<tcp::socket> s, const std::string& res, boost::system::error_code& error);
 
     protected : 
         int _port; //bp cgs
@@ -39,10 +40,10 @@ class TcpServer
         long _bufSize = 1024*1024*16; //bp cgs
 
         //the arg is the request received and the return is the response to send back.
-        std::vector <std::function<std::string (const std::string&)>> _onRequest;
-        std::vector <std::function<void (const std::string&)>> _onError;
+        th::Safe<std::vector <std::function<std::string (const std::string&)>>> _onRequest;
+        th::Safe<std::vector <std::function<void (const std::string&)>>> _onError;
 
-        void _execOnError(const std::string& error){for (auto &f : _onError) f(error);}
+        void _execOnError(const std::string& error);
 
     public : 
 #include "./TcpServer_gen.h"

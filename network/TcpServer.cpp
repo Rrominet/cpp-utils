@@ -1,5 +1,6 @@
 #include "TcpServer.h"
 #include <exception>
+#include <mutex>
 #include "debug.h"
 
 TcpServer::TcpServer(int port, Mode mode, bool async) : 
@@ -60,23 +61,55 @@ void TcpServer::handleSocket(std::shared_ptr<tcp::socket> s)
     }
 
     lg2("Request received", request);
-    for (auto &f : _onRequest)
+    std::vector <std::function<std::string (const std::string&)>> onrequest;
+    {
+        std::lock_guard lk(_onRequest);
+        onrequest = _onRequest.data();
+    }
+    for (auto &f : onrequest)
         this->write(s, f(request));
 }
 
 void TcpServer::write(std::shared_ptr<tcp::socket> s,const std::string& res)
 {
     boost::system::error_code error;
+    this->write(s, res, error);
+}
+
+void TcpServer::write(std::shared_ptr<tcp::socket> s,const std::string& res,boost::system::error_code& error)
+{
     for (size_t j=0; j<res.size(); j+=_bufSize)
     {
         std::string _res = res.substr(j, _bufSize);
-        boost::asio::write(socket, boost::asio::buffer(_res), error);
+        boost::asio::write(*s, boost::asio::buffer(_res), error);
         if (error)
         {
             _execOnError(error.message());
             return;
         }
     }
-    lg("Socket written !");
+}
+
+void TcpServer::_execOnError(const std::string& error)
+{
+    std::vector <std::function<void (const std::string&)>> onerror;
+    {
+        std::lock_guard lk(_onError);
+        onerror = _onError.data();
+    }
+    for (auto &f : onerror)
+        f(error);
+}
+
+void TcpServer::addOnRequest(std::function<std::string (const std::string&)> f)
+{
+    std::lock_guard lk(_onRequest);
+    _onRequest.data().push_back(f);
+}
+
+void TcpServer::addOnError(std::function<void (const std::string&)> f)
+{
+    std::lock_guard lk(_onError);
+    _onError.data().push_back(f);
 }
 

@@ -29,19 +29,23 @@ using json = nlohmann::json;
 // in a HttpServer, the sse if looped, will block any other request.
 // in an AsyncHttpServer, ths sse if looped run on its own thread so the other requests will not be blocked.
 // Here is a simple working example of an sse loop:
-//    auto sse = [this](auto& s, auto& httpdata)
+//     auto sse = [this](std::shared_ptr<tcp::socket> s, std::unordered_map<std::string, std::string>& data)
 //     {
 //         while(true)
 //         {
 //             std::this_thread::sleep_for(std::chrono::seconds(1));
 //             json d;
 //             d["time"] = std::chrono::system_clock::now().time_since_epoch().count();
-//             d["httpdata_received"] = httpdata;
-//             this->sendAsSSE(s, d);
+//             d["httpdata_received"] = data;
+//             bool alive = this->sendAsSSE(s, d);
+//             if (!alive)
+//                 break;
 //         }
 //     };
+// 
 //     this->setOnSSE(sse);
 //     A client can listen to sse simply by calling the route /sse
+//     Warning : Don't forget to kill your loop when the client is not alive anymore because eash on _sse function is executed PER CLIENT. If not you will have a server that runs thousands of sse function that runs on dead clients...
 
 
 //TODO : implement SSE
@@ -56,17 +60,13 @@ class HttpServer : public TcpServer
 {
     public:
         HttpServer(int port, TcpServer::Mode mode, bool async);
-        virtual ~HttpServer() = default;
+        virtual ~HttpServer();
 
         //All the real work is happenning here : 
         //------------------------------------
         virtual void handleSocket(std::shared_ptr<tcp::socket> s) override;
         std::string readSocket(std::shared_ptr<tcp::socket> s, size_t length, const std::string& separator="\r\n\r\n");
         //------------------------------------
-
-        //change this before accepting requests.
-        //not during request processing if the server is async.
-        HttpResponse& httpResponse() { return _httpResponse; }
 
         json jsonBody(std::unordered_map<std::string, std::string>& httpdata);
 
@@ -89,16 +89,18 @@ class HttpServer : public TcpServer
         void addJsonFuncByPath(std::string path, const std::function<std::string(const json&)>& func);
 
         std::string root(std::unordered_map<std::string, std::string>& httpdata);
+        void setOnSSE(const std::function<void(std::shared_ptr<tcp::socket>, std::unordered_map<std::string, std::string>&)>& func);
 
-        //TODO: implement
-//         void setOnSSE(const std::function<void(tcp::socket&, std::unordered_map<std::string, std::string>&)>& func) {_onSSE = func;}
-//         void sendAsSSE(tcp::socket& socket, const json& data);
-//         void sendAsSSE(tcp::socket& socket, const std::string& data);
+        //return false if the client socket is dead
+        bool sendAsSSE(std::shared_ptr<tcp::socket> socket, const json& data);
+        bool sendAsSSE(std::shared_ptr<tcp::socket>, const std::string& data);
 
     protected : 
-        ml::Vec<std::function<std::string(std::unordered_map<std::string, std::string>&)>> _httpResponses;
-        std::unordered_map<std::string, std::function<std::string(std::unordered_map<std::string, std::string>&)>> _pathsFuncs;
-        HttpResponse _httpResponse;
-        ml::CommandsManager _cmds; //bp cg
+        th::Safe<ml::Vec<std::function<std::string(std::unordered_map<std::string, std::string>&)>>> _httpResponses;
+        th::Safe<std::unordered_map<std::string, std::function<std::string(std::unordered_map<std::string, std::string>&)>>> _pathsFuncs;
+        th::Safe<HttpResponse> _httpResponse;
+        th::Safe<ml::CommandsManager> _cmds; //bp cg
+
+        th::Safe<std::function<void(std::shared_ptr<tcp::socket>, std::unordered_map<std::string, std::string>&)>> _onSSE;
 };
 
