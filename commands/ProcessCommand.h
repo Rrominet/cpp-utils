@@ -1,6 +1,5 @@
 #pragma once
 #include "./Command.h"
-#include "../mlprocess.h"
 
 namespace ml
 {
@@ -17,6 +16,7 @@ namespace ml
 
         protected : 
             std::string _processPath; //bp cgs
+            ml::Vec<std::string> _processArgs; //bp cgs
 
         public :
 #include "./ProcessCommand_gen.h"

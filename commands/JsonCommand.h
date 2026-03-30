@@ -18,6 +18,8 @@ class JsonCommand : public ml::Command
         void setJsonExec(const std::function<void(const json&)>& f);
         void setJsonReverse(const std::function<void(const json&)>& f);
 
+        void setCmdExec(const std::function<void(JsonCommand&)>& f);
+
         std::string returnString(){return _returnValue.dump();}
 
         virtual json serialize() const override;

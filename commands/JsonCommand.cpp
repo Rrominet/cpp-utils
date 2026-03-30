@@ -32,8 +32,17 @@ void JsonCommand::setJsonExec(const std::function<void(const json&)>& f)
 {
     auto exec = [this, f](const std::any& args)
     {
-        json j = this->args<json>();
+        json& j = this->args<json>();
         f(j);
+    };
+    this->setExec(exec);
+}
+
+void JsonCommand::setCmdExec(const std::function<void(JsonCommand&)>& f)
+{
+    auto exec = [this, f](const std::any& args)
+    {
+        f(*this);
     };
     this->setExec(exec);
 }

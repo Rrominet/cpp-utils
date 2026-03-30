@@ -22,7 +22,9 @@ namespace files
         SIZE,
         SIZE_INV,
         TIME,
-        TIME_INV
+        TIME_INV,
+        TYPE,
+        TYPE_INV
     };
 
     enum FileType

@@ -1,4 +1,6 @@
 #include "./HttpServer.h"
+#include "Ret.h"
+#include "commands/JsonCommand.h"
 #include "network/network.h"
 #include <mutex>
 
@@ -214,25 +216,55 @@ void HttpServer::failureCmdJson(std::shared_ptr<JsonCommand> cmd, const json& j)
     _new["message"] = "";
 }
 
-std::shared_ptr<JsonCommand> HttpServer::createJsonCommand(const std::string& path)
+void HttpServer::successCmd(JsonCommand& cmd,const std::string& message) const
+{
+    json& j = cmd.returnValue();
+    j["message"] = message;
+    j["success"] = true;
+}
+
+void HttpServer::failureCmd(JsonCommand& cmd,const std::string& message) const
+{
+    json& j = cmd.returnValue();
+    j["data"] = {};
+    j["message"] = message;
+    j["success"] = false;
+}
+
+void HttpServer::successCmdJson(JsonCommand& cmd,const json& j) const
+{
+    json& _new = cmd.returnValue();
+    _new["success"] = true;
+    _new["data"] = j;
+    _new["message"] = "";
+}
+
+void HttpServer::failureCmdJson(JsonCommand& cmd,const json& j) const
+{
+	json& _new = cmd.returnValue();
+    _new["success"] = false;
+    _new["data"] = j;
+    _new["message"] = "";
+}
+
+void HttpServer::createJsonCommand(const std::string& path, 
+                const std::function<void(JsonCommand&)>& func, 
+                const std::vector<std::string>& mendatoryKeys)
 {
     std::lock_guard lk(_cmds);
     auto cmd = _cmds.data().createCommand<JsonCommand>(path); 	
-    auto f = [this, path, cmd] (const json& httpdata) mutable -> std::string
+    cmd->setMendatoryKeys(mendatoryKeys);
+    auto f = [this, path, cmd, func] (const json& args) mutable -> std::string
     {
         JsonCommand cmd_cp;
         {
             std::lock_guard lk(_cmds);
             cmd_cp = *cmd;
         }
+        cmd_cp.setCmdExec(func);
         try
         {
-            if (httpdata.contains("method") && httpdata["method"] == "OPTIONS")
-                return "";
-            if (httpdata.contains("content"))
-                cmd_cp.setJsonArgs(httpdata["content"]);
-            else 
-                cmd_cp.setJsonArgs(json::object());
+            cmd_cp.setJsonArgs(args);
             cmd_cp.exec();
             return cmd_cp.returnString() + "\n";
         }
@@ -244,8 +276,6 @@ std::shared_ptr<JsonCommand> HttpServer::createJsonCommand(const std::string& pa
     };
 
     this->addJsonFuncByPath(path,f);
-    return cmd;
-
 }
 
 void HttpServer::addFuncByPath(std::string path, const std::function<std::string(std::unordered_map<std::string, std::string>&)>& func)

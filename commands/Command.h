@@ -31,6 +31,10 @@ namespace ml
             template<typename T>
                 T& args()
                 {
+                    lg("ml::Command::args()");
+                    lg("args type : " << _args.type().name());
+                    lg("args.has_value : " << _args.has_value());
+                    lg("this : " << this);
                     if (!_args.has_value())
                         throw std::runtime_error("No args set for this command : " + _name);
                     return std::any_cast<T&>(_args);
