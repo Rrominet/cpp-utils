@@ -5,6 +5,7 @@ namespace ml
 {
     void ProcessCommand::exec()
     {
+        lg("ProcessCommand::exec");
         if (!this->check())
             throw std::runtime_error("Command check failed : " + this->name() + " : " + _error);
 
@@ -15,6 +16,8 @@ namespace ml
             cmd.push_back(arg);
         cmd.push_back("&");
 
+        //this changed
+        lg("Executing command via std::system : " << process::to_string(cmd));
         auto res = std::system(process::to_string(cmd).c_str());
         if (res != 0)
             throw std::runtime_error(_processPath + " : exec failed with code " + std::to_string(res));

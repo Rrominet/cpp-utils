@@ -744,7 +744,12 @@ std::string process::to_string(const std::vector<std::string>& cmd)
         }
     }
     
-    return command.str();
+    std::string c = command.str();
+    c = str::replace(c, "\"<<\"", "<<");
+    c = str::replace(c, "\"<\"", "<");
+    c = str::replace(c, "\">>\"", ">>");
+    c = str::replace(c, "\"&\"", "&");
+    return c;
 }
 
 std::string process::exec(const std::string& cmd, std::string inData, const std::string& workingdir, const bp::environment& env, std::string* error)
