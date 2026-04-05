@@ -3,7 +3,6 @@
 #include "./Ret.h"
 #include <string>
 #include <nlohmann/json.hpp>
-using json = nlohmann::json;
 
 //the functions of write and read are async by default !
 //You have a _sync version if you want.
@@ -11,6 +10,7 @@ using json = nlohmann::json;
 //read is sync, because It's often called at the begining of the program and is quite fast.
 namespace storage
 {
+    using json = nlohmann::json;
     void init();
     void save(const std::function<void(size_t)>& cb = 0, const std::function<void(const std::string&)>& error = 0);
 

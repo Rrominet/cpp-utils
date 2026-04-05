@@ -24,7 +24,6 @@ using json = nlohmann::json;
 // this server is made for HTTP/1.1 requests.
 //
 // for server-side events, you need to set the _onSSE function (with setOnSSE...)
-// in it, you can use the sendSSE function to send events to the client.
 // your responsible to keep a loop opened in it, if not the connexion will be closed.
 // in a HttpServer, the sse if looped, will block any other request.
 // in an AsyncHttpServer, ths sse if looped run on its own thread so the other requests will not be blocked.
@@ -56,6 +55,7 @@ struct HttpResponse
     bool cors = true;
 };
 
+class SSEEventLoop;
 class HttpServer : public TcpServer
 {
     public:
@@ -104,6 +104,12 @@ class HttpServer : public TcpServer
         bool sendAsSSE(std::shared_ptr<tcp::socket> socket, const json& data);
         bool sendAsSSE(std::shared_ptr<tcp::socket>, const std::string& data);
 
+        void addOnEveryRequest(const std::function<void()>& func);
+        void addOnEveryJsonCommands(const std::function<void(JsonCommand&)>& func);
+
+        //if you call this, the onSSE will not work anymore, it will use the unique SSEEventLoop instead.
+        void createUniqueSSELoop();
+
     protected : 
         th::Safe<ml::Vec<std::function<std::string(std::unordered_map<std::string, std::string>&)>>> _httpResponses;
         th::Safe<std::unordered_map<std::string, std::function<std::string(std::unordered_map<std::string, std::string>&)>>> _pathsFuncs;
@@ -111,5 +117,13 @@ class HttpServer : public TcpServer
         th::Safe<ml::CommandsManager> _cmds; //bp cg
 
         th::Safe<std::function<void(std::shared_ptr<tcp::socket>, std::unordered_map<std::string, std::string>&)>> _onSSE;
+
+        //will bee execute just before the response for EVERY request whatever their route.
+        th::Safe<ml::Vec<std::function<void()>>> _onEveryRequest;
+
+        //will be execute bor each json command just before the dumping of its result and after it hs been executed.
+        th::Safe<ml::Vec<std::function<void(JsonCommand&)>>> _onEveryJsonCommands;
+
+        th::Safe<std::unique_ptr<SSEEventLoop>> _sseUniqueLoop;
 };
 

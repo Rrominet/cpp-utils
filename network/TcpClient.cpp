@@ -23,35 +23,31 @@ TcpClient::TcpClient(const std::string& ip, bool http, bool https) : _resolver(_
 std::string TcpClient::send(const std::string& data, bool waitForResponse)
 {
     lg2("IP", _ip);
-    try
+    auto endpoints = _resolver.resolve(_ip, _port);
+    boost::asio::connect(_socket, endpoints);
+    boost::system::error_code err;
+    _socket.write_some(boost::asio::buffer(data), err);
+    if (!waitForResponse)
+        return "";
+
+    // get the server response
+    //
+    std::string _res;
+    for (;;)
     {
-        auto endpoints = _resolver.resolve(_ip, _port);
-        boost::asio::connect(_socket, endpoints);
-        boost::system::error_code err;
-        _socket.write_some(boost::asio::buffer(data), err);
-        if (!waitForResponse)
-            return "";
+        std::vector<unsigned char> buf(_read_buffer_size);
+        size_t len = _socket.read_some(boost::asio::buffer(buf), err);
+        if (err == boost::asio::error::eof)
+            break; // response finished.
+        else if (err)
+            throw boost::system::system_error(err);
 
-        // get the server response
-        //
-        std::string _res;
-        for (;;)
-        {
-            std::vector<unsigned char> buf(_read_buffer_size);
-            size_t len = _socket.read_some(boost::asio::buffer(buf), err);
-            if (err == boost::asio::error::eof)
-                break; // response finished.
-            else if (err)
-                throw boost::system::system_error(err);
-
-            for (int i=0; i<_read_buffer_size; i++)
-                _res += buf[i];
-        }
-
-        return _res;
+        _res.reserve(_res.size() + len);
+        for (int i=0; i<len; i++)
+            _res += buf[i];
     }
 
-    catch(const std::exception& e){throw;}
+    return _res;
 }
 
 std::string TcpClient::sendAsHttp(const std::string& data,const std::string& path, bool waitForResponse)
@@ -66,49 +62,49 @@ std::string TcpClient::sendAsHttp(const json& data,const std::string& path, bool
    return this->send(http, waitForResponse);
 }
 
-void TcpClient::listen(const std::function<void (const std::string& line)>& callback,const std::string& dataToSend, const std::string& del)
+void TcpClient::listen(const std::function<bool (const std::string& line)>& callback,const std::string& dataToSend, const std::string& del)
 {
-    try
+    auto endpoints = _resolver.resolve(_ip, _port);
+    boost::asio::connect(_socket, endpoints);
+    boost::system::error_code err;
+
+    if (!dataToSend.empty())
+        _socket.write_some(boost::asio::buffer(dataToSend), err);
+    else
+        _socket.write_some(boost::asio::buffer(del), err);
+
+    boost::asio::streambuf buffer;
+    for (;;)
     {
-        auto endpoints = _resolver.resolve(_ip, _port);
-        boost::asio::connect(_socket, endpoints);
-        boost::system::error_code err;
-
-        if (!dataToSend.empty())
-            _socket.write_some(boost::asio::buffer(dataToSend), err);
-        else
-            _socket.write_some(boost::asio::buffer(del), err);
-
-        boost::asio::streambuf buffer;
-        for (;;)
-        {
-            // read *whatever's available* (doesn't force a delimiter)
-            std::size_t n = boost::asio::read(_socket, buffer.prepare(_read_buffer_size),
-                    boost::asio::transfer_at_least(1), err);
-            if (err == boost::asio::error::eof) {
-                std::cout << "Server closed connection\n";
-                break;
-            } else if (err) {
-                std::cerr << "Error: " << err.message() << "\n";
-                break;
-            }
-
-            buffer.commit(n);
-
-            // Now parse the buffer manually, like curl does
-            std::istream is(&buffer);
-            std::string line;
-            while (std::getline(is, line)) {
-                callback(line);
-            }
-
+        // read *whatever's available* (doesn't force a delimiter)
+        std::size_t n = boost::asio::read(_socket, buffer.prepare(_read_buffer_size),
+                boost::asio::transfer_at_least(1), err);
+        if (err == boost::asio::error::eof) {
+            std::cout << "Server closed connection\n";
+            break;
+        } else if (err) {
+            std::cerr << "Error: " << err.message() << "\n";
+            break;
         }
-    }
 
-    catch(const std::exception& e){throw;}
+        buffer.commit(n);
+
+        // Now parse the buffer manually, like curl does
+        std::istream is(&buffer);
+        std::string line;
+        bool should_keep_listening = true;
+        while (std::getline(is, line)) {
+            should_keep_listening = callback(line);
+            if (!should_keep_listening)
+                break;
+        }
+
+        if (!should_keep_listening)
+            break;
+    }
 }
 
-void TcpClient::listenAsHttp(const std::function<void (const std::string& line)>& callback, const std::string& path, const std::string& del)
+void TcpClient::listenAsHttp(const std::function<bool (const std::string& line)>& callback, const std::string& path, const std::string& del)
 {
     std::string http = network::client_request_as_http(path, "", network::GET, network::STRING);	
     this->listen(callback, http, del);

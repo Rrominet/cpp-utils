@@ -16,12 +16,15 @@ TcpServer::~TcpServer(){}
 
 void TcpServer::run()
 {
+    lg("TcpServer::run() - Port " << _port);
     try
     {
         for (;;)
         {
+            lg("Accepting the socket...");
             std::shared_ptr<tcp::socket> s = std::make_shared<tcp::socket>(_io_service);
             _acceptor->accept(*s);
+            lg("Socket accepted.");
             if (!_async)
                 this->handleSocket(s);
             else 

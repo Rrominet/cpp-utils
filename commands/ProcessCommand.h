@@ -3,7 +3,7 @@
 
 namespace ml
 {
-    class ProcessCommand : public Command
+    class ProcessCommand : virtual public Command
     {
         public:
             ProcessCommand() = default;
@@ -15,6 +15,10 @@ namespace ml
             virtual void deserialize(const json& j) override;
 
         protected : 
+            bool _detached = true; //bp cgs
+            int _exitCode = 0; //bp cg
+            std::string _stdout; //bp cg
+            std::string _stderr; //bp cg
             std::string _processPath; //bp cgs
             ml::Vec<std::string> _processArgs; //bp cgs
 

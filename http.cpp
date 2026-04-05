@@ -57,6 +57,7 @@ namespace http
             Method method, ml::Vec<std::string> headers)
     {
         auto cmd = curl ;
+        cmd += " -s";
         for (const auto& h : headers)
             cmd += " -H \"" + h + "\"";
         if (method == POST)

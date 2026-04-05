@@ -135,6 +135,11 @@ namespace files
             const CopyRules& rules,
             unsigned int pgrInterval=16);
 
+    bool remove_pgr(const std::vector<std::string>& files,
+            const std::function<void (CopyProgress&)>& progress,
+            CopyProgress& track,
+            unsigned int pgrInterval=16);
+
     unsigned long size_pgr(const std::string& path,
             const std::function<void (CopyProgress&)>& progress, CopyProgress& track,
             unsigned int pgrInterval=16);
@@ -156,5 +161,5 @@ namespace files
     std::string cwd();
 
     FileType type(const std::string& path);
-
+    std::string incremented(const std::string& path);
 }

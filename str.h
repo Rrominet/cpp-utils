@@ -112,6 +112,7 @@ namespace str
     // carful here if the strings in the lists are deleted, the pointers in the retrunred char ** will not be ok anymore. use the 2nd function if you want to use the char** after the death of the vector.
     const char ** fromStringList(const std::vector<std::string>& vec);
     char ** fromStringListCopy(const std::vector<std::string>& vec);
+    bool startsWith(const std::string& s, const std::string& start);
 }
 
 namespace ml

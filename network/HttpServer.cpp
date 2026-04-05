@@ -1,7 +1,8 @@
 #include "./HttpServer.h"
-#include "Ret.h"
-#include "commands/JsonCommand.h"
-#include "network/network.h"
+#include "../commands/JsonCommand.h"
+#include "./network.h"
+#include "./SSEEventLoop.h"
+#include <memory>
 #include <mutex>
 
 HttpServer::HttpServer(int port,TcpServer::Mode mode,bool async) : TcpServer(port,mode,async)
@@ -19,6 +20,7 @@ HttpServer::HttpServer(int port,TcpServer::Mode mode,bool async) : TcpServer(por
 
     auto main_cb = [this](std::unordered_map<std::string, std::string>& httpdata) -> std::string
     {
+        lg("In main server callback...");
         if (httpdata.find("path") == httpdata.end())
             return "{\"success\": false, \"message\": \"No path given.\"}";
 
@@ -30,6 +32,7 @@ HttpServer::HttpServer(int port,TcpServer::Mode mode,bool async) : TcpServer(por
         }
         if (pathsfuncs.find(httpdata.at("path")) == pathsfuncs.end())
         {
+            lg("Path " + httpdata.at("path") + " not found.");
             res = "{\"success\": false, \"message\": \"path " + httpdata.at("path") + " not found.\"}";
             return res;
         }
@@ -43,11 +46,15 @@ HttpServer::HttpServer(int port,TcpServer::Mode mode,bool async) : TcpServer(por
         {
             return "{\"success\": false, \"message\": \"" + std::string(e.what()) + "\"}";
         }
+        return "{\"success\": false, \"message\": \"This should be impossible.\"}";
     };
 
     {
+    lg("a");
         std::lock_guard lk(_httpResponses);
+    lg("a");
         _httpResponses.data().push(main_cb);
+    lg("a");
     }
 }
 
@@ -55,6 +62,7 @@ HttpServer::~HttpServer(){}
 
 void HttpServer::handleSocket(std::shared_ptr<tcp::socket> s)
 {
+    lg("handling the socket ...");
     std::string headers = this->readSocket(s, _bufSize, "\r\n\r\n");
     std::unordered_map<std::string, std::string> httpdata;
     httpdata = network::httpHeaders(headers);
@@ -65,11 +73,10 @@ void HttpServer::handleSocket(std::shared_ptr<tcp::socket> s)
         if (length > 0)
         {
             auto realHeaderSize = str::split(headers, "\r\n\r\n")[0].size() + 4;// 4 is the size of \r\n\r\n
-            auto lengthToRead = length + realHeaderSize; // because header size not in Content-Length
-            lengthToRead -= headers.size();
+            long long lengthToRead = (long long)(length + realHeaderSize) - (long long)headers.size();
             if (lengthToRead > 0)
             {
-                auto rest = this->readSocket(s, lengthToRead);
+                auto rest = this->readSocket(s, (size_t)lengthToRead);
                 httpdata["content"] += rest;
             }
 
@@ -81,20 +88,38 @@ void HttpServer::handleSocket(std::shared_ptr<tcp::socket> s)
         }
     }
 
+    {
+        std::lock_guard lk(_onEveryRequest);
+        for (const auto& f : _onEveryRequest.data())
+            f();
+    }
+
     if (httpdata.find("path") != httpdata.end() && httpdata["path"] == "/sse")
     {
-        std::function<void(std::shared_ptr<tcp::socket>, std::unordered_map<std::string, std::string>&)> onsse = 0;
+        bool isSSELoop = false;
         {
-            std::lock_guard lk(_onSSE);
-            onsse = _onSSE.data();
+            std::lock_guard lk(_sseUniqueLoop);
+            if (_sseUniqueLoop.data())
+                isSSELoop = true;
         }
+        if (!isSSELoop)
+        {
+            std::function<void(std::shared_ptr<tcp::socket>, std::unordered_map<std::string, std::string>&)> onsse = 0;
+            {
+                std::lock_guard lk(_onSSE);
+                onsse = _onSSE.data();
+            }
 
-        if (onsse)
-        {
-            auto hds = network::sse_headers();
-            this->write(s, hds);
-            onsse(s, httpdata);
+            if (onsse)
+            {
+                auto hds = network::sse_headers();
+                this->write(s, hds);
+                onsse(s, httpdata);
+            }
         }
+        else 
+            _sseUniqueLoop.data(true)->addSubscriber(s);
+        return;
     }
 
     ml::Vec<std::function<std::string(std::unordered_map<std::string, std::string>&)>> httpresponses;
@@ -251,11 +276,13 @@ void HttpServer::createJsonCommand(const std::string& path,
                 const std::function<void(JsonCommand&)>& func, 
                 const std::vector<std::string>& mendatoryKeys)
 {
+    lg("Creating command " + path);
     std::lock_guard lk(_cmds);
     auto cmd = _cmds.data().createCommand<JsonCommand>(path); 	
     cmd->setMendatoryKeys(mendatoryKeys);
     auto f = [this, path, cmd, func] (const json& args) mutable -> std::string
     {
+        lg("Executing path from " + path);
         JsonCommand cmd_cp;
         {
             std::lock_guard lk(_cmds);
@@ -266,6 +293,11 @@ void HttpServer::createJsonCommand(const std::string& path,
         {
             cmd_cp.setJsonArgs(args);
             cmd_cp.exec();
+            {
+                std::lock_guard lk(_onEveryJsonCommands);
+                for(const auto& f : _onEveryJsonCommands.data())
+                    f(cmd_cp);
+            }
             return cmd_cp.returnString() + "\n";
         }
         catch(const std::exception& e)
@@ -357,8 +389,30 @@ bool HttpServer::sendAsSSE(std::shared_ptr<tcp::socket> socket,const std::string
     boost::system::error_code ec;
     auto s = network::sse_formated("message", data, "");
     s+= "\n";
-    this->write(socket, s);
+    this->write(socket, s, ec);
     return !(ec == boost::asio::error::eof || 
             ec == boost::asio::error::connection_reset ||
             ec == boost::asio::error::broken_pipe);
+}
+
+void HttpServer::addOnEveryRequest(const std::function<void()>& func)
+{
+    std::lock_guard lk(_onEveryRequest);
+    _onEveryRequest.data().push_back(func);
+}
+
+void HttpServer::addOnEveryJsonCommands(const std::function<void(JsonCommand&)>& func)
+{
+    std::lock_guard lk(_onEveryJsonCommands);
+    _onEveryJsonCommands.data().push_back(func);
+}
+
+void HttpServer::createUniqueSSELoop()
+{
+    std::lock_guard lk(_sseUniqueLoop);
+    _sseUniqueLoop.data() = std::make_unique<SSEEventLoop>(this);
+    auto run = [this]{
+        _sseUniqueLoop.data(true)->run();
+    };
+    _pool.run(run);
 }

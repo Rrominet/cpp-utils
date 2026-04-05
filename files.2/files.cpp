@@ -719,6 +719,38 @@ size_t write(const std::string& path, void* content, size_t size, int permission
             copy_pgr(file, inDir + files::sep() + files::name(file), progress, track, rules, pgrInterval);
     }
 
+    bool remove_pgr(const std::vector<std::string>& files,
+            const std::function<void (CopyProgress&)>& progress,
+            CopyProgress& track,
+            unsigned int pgrInterval)
+    {
+        Perfs perfs;
+        perfs.start();
+        bool all_ok = true;
+        for (const auto& file : files)
+        {
+            if (!files::exists(file))
+                continue;
+            try
+            {
+                files::remove(file);
+                track.files_copied++;
+                track.copied += 1;
+                if (perfs.hasPassed(pgrInterval))
+                {
+                    progress(track);
+                    perfs.start();
+                }
+            }
+            catch(...)
+            {
+                all_ok = false;
+            }
+        }
+        progress(track);
+        return all_ok;
+    }
+
     void _size_dir_pgr(const std::string& path, const std::function<void (CopyProgress&)>& progress, Perfs& perfs, unsigned int pgrInterval, CopyProgress& track)
     {
         for (const auto& file : files::ls(path)) 
@@ -901,5 +933,27 @@ size_t write(const std::string& path, void* content, size_t size, int permission
             return FileType::IMAGE;
 
         return FileType::UNKNOWN;
+    }
+
+    std::string incremented(const std::string& path)
+    {
+        std::string dir = files::parent(path);
+        std::string filename = files::name(path);
+        std::string ext = files::ext(path);
+
+        // base name without extension
+        std::string base = filename;
+        if (!ext.empty() && filename.size() > ext.size() + 1)
+            base = filename.substr(0, filename.size() - ext.size() - 1);
+
+        int i = 1;
+        while (true)
+        {
+            std::string padded = (i < 10 ? "0" : "") + std::to_string(i);
+            std::string candidate = dir + files::sep() + base + "." + padded + ext;
+            if (!files::exists(candidate))
+                return candidate;
+            i++;
+        }
     }
 }

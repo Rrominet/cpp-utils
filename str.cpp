@@ -633,6 +633,13 @@ char** str::fromStringListCopy(const std::vector<std::string>& vec)
     return r;
 }
 
+bool str::startsWith(const std::string& s, const std::string& start)
+{
+    if (start.size() > s.size())
+        return false;
+    return s.compare(0, start.size(), start) == 0;
+}
+
 namespace ml
 {
     String::String() {

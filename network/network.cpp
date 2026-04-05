@@ -144,7 +144,7 @@ std::string network::send(std::string url, const json& data, Method method)
         throw std::runtime_error("The process curl : " + cmd + " don't seam to be present on the computer with this path...");
     // write the json data in a tmp file, because it could be very long and override the process buffer ...
 
-    std::string tmppath = files::tmp() + files::sep() + "data_to_send.json";
+    std::string tmppath = files::tmp() + files::sep() + "data_to_send__" + str::random(10) + ".json";
     files::write(tmppath, data.dump());
 
     cmd += " -H \"Content-Type: application/json\"";
@@ -158,21 +158,26 @@ std::string network::send(std::string url, const json& data, Method method)
     else if (method == GET)
         cmd += " -X GET -G --data-urlencode \"@" + tmppath + "\""; // I have maybe broke something heere...
     cmd += " " + url;
-    return process::exec(cmd);
+    auto res = process::exec(cmd);
+
+    files::remove(tmppath);
+    return res;
 }
 
 std::string network::http_formated(const std::string& res,const std::string& contentType,bool cors,int serverCode)
 {
-    std::string r = "HTTP/1.1 " + std::to_string(serverCode) + " OK\n" + 
-    "Content-type: " + contentType + "\n";
+    std::string r = "HTTP/1.1 " + std::to_string(serverCode) + " OK\r\n" + 
+    "Content-type: " + contentType + "\r\n";
+
+    r += "Content-Length: " + std::to_string(res.size()) + "\r\n";
     if (cors)
     {
-        r += "Access-Control-Allow-Origin: *\n";
-        r += "Access-Control-Allow-Headers: *\n";
-        r += "Access-Control-Allow-Methods: POST, GET, OPTIONS, DELETE, PUT\n";
+        r += "Access-Control-Allow-Origin: *\r\n";
+        r += "Access-Control-Allow-Headers: *\r\n";
+        r += "Access-Control-Allow-Methods: POST, GET, OPTIONS, DELETE, PUT\r\n";
     }
 
-    r+= "\n" + res;
+    r+= "\r\n" + res;
     return r;
 }
 
@@ -180,13 +185,13 @@ std::string network::http_formated(const std::string& res,const std::string& con
 // TODO : could add the ability to choose to add cors headers or not but useful for later, not now...
 std::string network::sse_headers()
 {
-    std::string headers = "HTTP/1.1 200 OK\n";
-    headers += "Connection: keep-alive\n";
-    headers += "Content-Type: text/event-stream\n";
-    headers += "Access-Control-Allow-Origin: *\n";
-    headers += "Access-Control-Allow-Headers: *\n";
-    headers += "Access-Control-Allow-Methods: POST, GET, OPTIONS, DELETE, PUT\n";
-    headers += "\n";
+    std::string headers = "HTTP/1.1 200 OK\r\n";
+    headers += "Connection: keep-alive\r\n";
+    headers += "Content-Type: text/event-stream\r\n";
+    headers += "Access-Control-Allow-Origin: *\r\n";
+    headers += "Access-Control-Allow-Headers: *\r\n";
+    headers += "Access-Control-Allow-Methods: POST, GET, OPTIONS, DELETE, PUT\r\n";
+    headers += "\r\n";
     return headers;
 }
 

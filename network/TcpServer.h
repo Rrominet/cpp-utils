@@ -16,7 +16,7 @@ class TcpServer
         TcpServer(int port=1024, Mode mode=IP4, bool async=false);
         virtual ~TcpServer();
 
-        void run();
+        virtual void run();
 
         boost::asio::io_service& ioservice(){return _io_service;}
         tcp::acceptor& acceptor()const{return *_acceptor;}
