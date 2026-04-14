@@ -38,7 +38,6 @@ srcs = [
 
 
 fm = build.create("mlapi", sys.argv)
-fm.static = False
 fm.includes = includes
 fm.addToSrcs(srcs)
 fm.addToLibs([

@@ -501,6 +501,31 @@ namespace ml
                 typename std::vector<T>::iterator insert(typename std::vector<T>::const_iterator position, std::initializer_list<T> il) {
                     return vec.insert(position, il);
                 }
+                // insert single value at index
+                typename std::vector<T>::iterator insert(size_t position, const T& val) {
+                    return vec.insert(vec.begin() + position, val);
+                }
+
+                // insert fill at index
+                typename std::vector<T>::iterator insert(size_t position, typename std::vector<T>::size_type n, const T& val) {
+                    return vec.insert(vec.begin() + position, n, val);
+                }
+
+                // insert range at index
+                template <typename InputIterator>
+                    typename std::vector<T>::iterator insert(size_t position, InputIterator first, InputIterator last) {
+                        return vec.insert(vec.begin() + position, first, last);
+                    }
+
+                // insert rvalue at index
+                typename std::vector<T>::iterator insert(size_t position, T&& val) {
+                    return vec.insert(vec.begin() + position, std::move(val));
+                }
+
+                // insert initializer list at index
+                typename std::vector<T>::iterator insert(size_t position, std::initializer_list<T> il) {
+                    return vec.insert(vec.begin() + position, il);
+                }
 
                 T join(const T& joinChar) const
                 {

@@ -26,7 +26,10 @@ extern "C"
 #include <fstream>
 #include "../str.h"
 
+#ifdef __EMSCRIPTEN__
+#else
 #include <boost/filesystem.hpp>
+#endif
 #include "../mlMath.h"
 #include "../Perfs.h"
 
@@ -341,6 +344,9 @@ namespace files
 
     std::string sep()
     {
+#ifdef __EMSCRIPTEN__
+        return "/";
+#endif
 #ifdef _WIN32
         return "\\";
 #else 
@@ -811,6 +817,8 @@ size_t write(const std::string& path, void* content, size_t size, int permission
 
     void move(const std::string& from, const std::string& to)
     {
+        if (files::exists(to))
+            throw std::runtime_error("Move : destination file already exists :\n" + to);
         fs::rename(from, to);
     }
 
@@ -847,6 +855,9 @@ size_t write(const std::string& path, void* content, size_t size, int permission
 
     int64_t lastTimeModified(const std::string& path)
     {
+#ifdef __EMSCRIPTEN__
+        return 0;
+#else
         try
         {
             boost::filesystem::path file_path(path);
@@ -857,6 +868,7 @@ size_t write(const std::string& path, void* content, size_t size, int permission
         {
             return 0;
         }
+#endif
     }
 
     std::vector<unsigned char> bContent(const std::string& path)
@@ -950,7 +962,7 @@ size_t write(const std::string& path, void* content, size_t size, int permission
         while (true)
         {
             std::string padded = (i < 10 ? "0" : "") + std::to_string(i);
-            std::string candidate = dir + files::sep() + base + "." + padded + ext;
+            std::string candidate = dir + files::sep() + base + "." + padded + "." + ext;
             if (!files::exists(candidate))
                 return candidate;
             i++;

@@ -1,4 +1,6 @@
 #pragma once
+#ifdef __EMSCRIPTEN__
+#else
 #include <boost/version.hpp>
 
 #if BOOST_VERSION >= 108400
@@ -6,9 +8,11 @@
 #else 
 #include <boost/filesystem/path_traits.hpp>
 #endif
+#endif
 
 #include <string>
 #include <vector>
+#include <functional>
 
 #define _fc +files::sep()+
 

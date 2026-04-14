@@ -1,11 +1,13 @@
 #include "./ProcessCommand.h"
 #include "../mlprocess.h"
 #include <boost/process.hpp>
+#include "str.h"
 
 namespace ml
 {
     void ProcessCommand::exec()
     {
+        this->convertFullCommandToArgs();
         lg("ProcessCommand::exec");
         if (!this->check())
             throw std::runtime_error("Command check failed : " + this->name() + " : " + _error);
@@ -72,5 +74,21 @@ namespace ml
         }
         if (j.contains("detached"))
             _detached = j["detached"];
+    }
+
+    void ProcessCommand::convertFullCommandToArgs()
+    {
+        if (!str::contains(_processPath, " "))
+            return;
+
+        ml::Vec<std::string> args;
+
+        args = process::parse(_processPath);
+        if (args.empty())
+            return;
+        _processPath = args[0];
+        args.vec.erase(args.vec.begin());
+        args.concat(_processArgs.vec);
+        _processArgs = args;
     }
 }

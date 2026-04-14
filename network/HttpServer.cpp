@@ -50,11 +50,8 @@ HttpServer::HttpServer(int port,TcpServer::Mode mode,bool async) : TcpServer(por
     };
 
     {
-    lg("a");
         std::lock_guard lk(_httpResponses);
-    lg("a");
         _httpResponses.data().push(main_cb);
-    lg("a");
     }
 }
 
@@ -288,6 +285,11 @@ void HttpServer::createJsonCommand(const std::string& path,
             std::lock_guard lk(_cmds);
             cmd_cp = *cmd;
         }
+        if (args.contains("ip"))
+            cmd_cp.setAttribute("ip", args["ip"].get<std::string>());
+        else 
+            cmd_cp.setAttribute("ip", _S"IP not found in json args - should not happen");
+
         cmd_cp.setCmdExec(func);
         try
         {
@@ -307,7 +309,7 @@ void HttpServer::createJsonCommand(const std::string& path,
         }
     };
 
-    this->addJsonFuncByPath(path,f);
+    this->addJsonFuncByPath(path, f);
 }
 
 void HttpServer::addFuncByPath(std::string path, const std::function<std::string(std::unordered_map<std::string, std::string>&)>& func)
@@ -349,7 +351,9 @@ void HttpServer::addJsonFuncByPath(std::string path, const std::function<std::st
     {
         try
         {
-            return func(this->jsonBody(data));
+            json jdata = this->jsonBody(data);
+            jdata["ip"] = this->ip(data);
+            return func(jdata);
         }
         catch(const std::exception& e)
         {
@@ -415,4 +419,11 @@ void HttpServer::createUniqueSSELoop()
         _sseUniqueLoop.data(true)->run();
     };
     _pool.run(run);
+}
+
+std::string HttpServer::ip(const std::unordered_map<std::string,std::string>& httpdata)
+{
+    if (httpdata.find("X-Real-IP") == httpdata.end())
+        return "IP Unkown";
+    return httpdata.at("X-Real-IP");	
 }

@@ -109,6 +109,7 @@ class HttpServer : public TcpServer
 
         //if you call this, the onSSE will not work anymore, it will use the unique SSEEventLoop instead.
         void createUniqueSSELoop();
+        std::string ip(const std::unordered_map<std::string, std::string>& httpdata);
 
     protected : 
         th::Safe<ml::Vec<std::function<std::string(std::unordered_map<std::string, std::string>&)>>> _httpResponses;

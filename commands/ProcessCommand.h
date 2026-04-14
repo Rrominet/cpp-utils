@@ -3,7 +3,7 @@
 
 namespace ml
 {
-    class ProcessCommand : virtual public Command
+    class ProcessCommand : public Command
     {
         public:
             ProcessCommand() = default;
@@ -13,6 +13,9 @@ namespace ml
 
             virtual json serialize() const override;
             virtual void deserialize(const json& j) override;
+
+            //if there is args in the _processPath, their will be moved in _processArgs
+            void convertFullCommandToArgs();
 
         protected : 
             bool _detached = true; //bp cgs
