@@ -15,7 +15,20 @@ def main():
         print("This script must be run as root (use sudo)", file=sys.stderr)
         sys.exit(1)
 
-    path = "/usr/local/lib/libmlapi.so"
+    path = "/opt/mlapi/lib/libmlapi.so"
+
+    if os.path.isfile(path):
+        mtime = os.path.getmtime(path)   # last modification time (seconds since epoch)
+        age = time.time() - mtime        # file age in seconds
+
+        if age < 1800:  # 1800 = 30min
+            print("mlapi is already installed and recent (less than 30min). Skipping.")
+            exit(0);
+        else:
+            print("mlapi is already installed but older than 30min. Reinstalling...")
+            os.remove(path)
+    else:
+        print("mlapi is not installed. Installing...")
 
 
     # clone py-utils
@@ -64,23 +77,12 @@ def main():
     if os.path.isfile("/usr/local/lib/libfmod.so"):
         print("Fmod lib already installed. Skipping.")
     else:
+        #noooo actually it should be installed in /opt/mlapi/lib/...
         print("Installing fmod lib on the system (/usr/local/lib)...")
         src = os.path.join(dpdir, "fmodstudioapi20000linux/api/core/lib/x86_64")
         run(f"cp {src}/* /usr/local/lib/")
         print("Fmod lib installed.")
 
-    if os.path.isfile(path):
-        mtime = os.path.getmtime(path)   # last modification time (seconds since epoch)
-        age = time.time() - mtime        # file age in seconds
-
-        if age < 1800:  # 1800 = 30min
-            print("mlapi is already installed and recent (less than 30min). Skipping.")
-            exit(0);
-        else:
-            print("mlapi is already installed but older than 30min. Reinstalling...")
-            os.remove(path)
-    else:
-        print("mlapi is not installed. Installing...")
 
     # build cpp-utils
     os.chdir("cpp-utils")
@@ -90,11 +92,10 @@ def main():
     run(f"../make release keep-same libs=\"{dpdir}\"")
     run("chmod 755 ./libmlapi.so")
 
-    libpath = "/usr/local/lib/libmlapi.so"
-    if os.path.isfile(libpath):
+    if os.path.isfile(path):
         print("Old version of mlapi found. Removing it.")
-        run(f"rm -vf {libpath}")
-    run(f"cp ./libmlapi.so {libpath}")
+        run(f"rm -vf {path}")
+    run(f"cp ./libmlapi.so {path}")
     run("chmod +x ../add-local-to-linker")
     run("../add-local-to-linker")
 

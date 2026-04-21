@@ -1,11 +1,18 @@
 #!/usr/bin/env python3
+from ml import docker
+from ml import log
+import sys
+
+if not docker.isFromADocker() and "test" not in sys.argv : 
+    log.print("You need to run this script inside a docker container, You're building for your machine host right now ! Abort.", "red")
+    exit(1)
+
 from ml import build
 from ml.boilerplate import cpp
 from ml import fileTools as ft
 import os
-import sys
 
-libs = "/media/romain/Donnees/Programmation/cpp/libs"
+libs = "../../libs"
 
 for arg in sys.argv:
     if "libs=" in arg:
@@ -45,12 +52,12 @@ fm.addToLibs([
     "stdc++fs",
     "boost_filesystem",
     libs + "/FreeImagePlus-build/libfreeimageplus.a",
-    "fmod",
-    "fmodL"
+    "libfmod.so",
+    "libfmodL.so"
     ])
 
 fm.srcs_exclude += ["main.cpp"]
-fm.shared = True
+fm.outputType = build.STATIC_LIB
 fm.definitions += ["NO_LOGS"]
 
 fm.flags += ["-std=c++17"]
