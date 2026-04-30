@@ -45,6 +45,9 @@ srcs = [
 
 
 fm = build.create("mlapi", sys.argv)
+if not "release" in sys.argv:
+    fm.name = "mlapi_debug"
+
 fm.includes = includes
 fm.addToSrcs(srcs)
 fm.addToLibs([

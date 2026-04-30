@@ -100,6 +100,7 @@ namespace ipc
     }
 
     void success(json& toreturn);
+    void success(json& toreturn, const std::string& message);
 
     void stream(json& data, int id);
 

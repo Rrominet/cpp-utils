@@ -39,8 +39,8 @@ namespace str
     std::string quote( const std::string& s );//nodify
     std::string unquote( const std::string& s );//nodify
     
-    std::string encode(const std::string& s);//nodify
-    std::string decode(const std::string& s);//nodify
+    std::string encode(const std::string& s, int offset=1, bool ignoreNonVisible=false);//nodify
+    std::string decode(const std::string& s, int offset=1, bool ignoreNonVisible=false);//nodify
 
     namespace test
     {

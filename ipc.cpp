@@ -431,6 +431,13 @@ namespace ipc
         toreturn["error"] = "";
     }
 
+    void success(json& toreturn, const std::string& message)
+    {
+        toreturn["success"] = true;
+        toreturn["error"] = message;
+        toreturn["message"] = message;
+    }
+
     void setMaxEventRate(int ms)
     {
         _max_event_rate = ms;

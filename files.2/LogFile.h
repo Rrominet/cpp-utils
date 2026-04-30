@@ -7,7 +7,7 @@ namespace ml
     class LogFile
     {
         public:
-            LogFile(const std::string& filepath);
+            LogFile(const std::string& filepath="");
             void write(std::string tolog);
             bool async() const;
             void setAsync(bool async);

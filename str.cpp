@@ -273,44 +273,47 @@ std::string str::unquote( const std::string& s )
     return result;
 }
 
-std::string str::encode(const std::string& s)
+std::string str::encode(const std::string& s, int offset, bool ignoreNonVisible)
 {
-    std::vector<char> buf(s.size());
-    for (int i=0; i<s.size(); i++)
+    std::string out;
+    out.reserve(s.size());
+
+    const int minChar = ignoreNonVisible ? 33 : 32;
+    const int maxChar = 126;
+    const int range = maxChar - minChar + 1;
+
+    for (unsigned char c : s)
     {
-        if (s[i] >= 126)
+        if (ignoreNonVisible)
         {
-            buf[i] = s[i];
+            if (c == ' ' || c == '\t' || c == '\n' || c == '\r')
+            {
+                out.push_back(c);
+                continue;
+            }
+        }
+
+        if (c < minChar || c > maxChar)
+        {
+            out.push_back(c);
             continue;
         }
 
-        buf[i] = s[i] + 1;
+        int normalized = c - minChar;
+        int shifted = (normalized + offset) % range;
+
+        if (shifted < 0)
+            shifted += range;
+
+        out.push_back(static_cast<char>(minChar + shifted));
     }
 
-    std::string ne;
-    for (int i=0; i<s.size(); i++)
-        ne.push_back(buf[i]);
-    return ne;
+    return out;
 }
 
-std::string str::decode(const std::string& s)
+std::string str::decode(const std::string& s, int offset, bool ignoreNonVisible)
 {
-    std::vector<char> buf(s.size());
-    for (int i=0; i<s.size(); i++)
-    {
-        if (s[i] >= 126)
-        {
-            buf[i] = s[i];
-            continue;
-        }
-
-        buf[i] = s[i] - 1;
-    }
-
-    std::string ne;
-    for (int i=0; i<s.size(); i++)
-        ne.push_back(buf[i]);
-    return ne;
+    return str::encode(s, -offset, ignoreNonVisible);
 }
 
 void str::test::encode()
