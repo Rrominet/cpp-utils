@@ -17,6 +17,11 @@ namespace ml
     class CommandsManager
     {
         public:
+            CommandsManager() : _commands(), _history()
+            {
+            }
+            virtual ~CommandsManager() {
+            }
             // if id is empty, it will be the name
             template<typename T=Command, typename A=std::any>
                 std::shared_ptr<T> createCommand(const std::string name, std::string id="", const std::function<void(const std::any&)>& exec = 0, const A& args={})
