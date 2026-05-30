@@ -8,6 +8,7 @@ namespace mlrandom
     int seed();
     double getFloat(const double &min=0.0, const double &max=1.0);
     int getInt(const int &min=0, const int &max=100);
+    long getLong(const long &min=0, const long &max=100);
 
     // utlity function for the gaussian one, should not be used alone..
     double gaussian();

@@ -34,6 +34,11 @@ int mlrandom::getInt(const int &min, const int &max)
     return rand() % (max - min) + min; 
 }
 
+long mlrandom::getLong(const long &min, const long &max)
+{
+    return rand() % (max - min) + min; 
+}
+
 double mlrandom::gaussian()
 {
     double v1, v2, s; 

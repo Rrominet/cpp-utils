@@ -82,6 +82,8 @@ namespace ml
                 unsigned long max() const {return _max;}
                 void setMax(unsigned long max) {_max = max;}
 
+                const ml::Vec<T>& stack()const {return _stack;}
+
             private : 
                 ml::Vec<T> _stack;
                 long _current = -1;

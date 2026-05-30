@@ -10,30 +10,30 @@ using json = nlohmann::json;
 //ffmpeg must include " " if needed
 namespace ffmpeg 
 {
-    std::string concatenate(std::vector<std::string> files, const std::string& output, const std::string &ffmpegPath = "ffmpeg");
-    std::string concat(std::vector<std::string> files, const std::string& output, const std::string &ffmpegPath = "ffmpeg");
-    std::string proxy(const std::string& file, std::string output="", const std::string &ffmpegPath = "ffmpeg");
-    std::string raw(const std::string& file, const std::string& ffmpegPath = "ffmpeg");
-    std::string raw(const std::string& file, const std::string& start, const std::string& duration, const std::string& ffmpegPath = "ffmpeg");
+    std::string concatenate(const std::vector<std::string>& files, const std::string& output, std::string ffmpegPath = "ffmpeg");
+    std::string concat(const std::vector<std::string>& files, const std::string& output, std::string ffmpegPath = "ffmpeg");
+    std::string proxy(const std::string& file, std::string output="", std::string ffmpegPath = "ffmpeg");
+    std::string raw(const std::string& file, std::string ffmpegPath = "ffmpeg");
+    std::string raw(const std::string& file, const std::string& start, const std::string& duration, std::string ffmpegPath = "ffmpeg");
 
     //  return cmd for getting audio as raw pcm 32bit floting point (big-endian)
-    std::string pcm(const std::string& file, const std::string& ffmpegPath = "ffmpeg");
+    std::string pcm(const std::string& file, std::string ffmpegPath = "ffmpeg");
 
     // cmd to convert a file as wav file
     // if output is empty, it will take the basename of the source with the extension .wav
-    std::string wav(const std::string& file, const std::string output="", const std::string& ffmpegPath = "ffmpeg");
+    std::string wav(const std::string& file, const std::string output="", std::string ffmpegPath = "ffmpeg");
 
     std::string tmpDir();
-    std::string web(const std::string& file, const std::string output="", const std::string& ffmpegPath = "ffmpeg");
+    std::string web(const std::string& file, const std::string output="", std::string ffmpegPath = "ffmpeg");
 
-    json encoders(const std::string& ffmpegPath = "ffmpeg");
+    json encoders(std::string ffmpegPath = "ffmpeg");
 
     //careful here, cb is executed on another thread, if you use a GUI, queue your fuctions in your main thread, DO NOT EXECUTE GUI FUNCTION DIRECTLY IN THE cb. (with mlgui.2 you can use : App::queue(your_gui_func) to queue your function on the mainthread)
-    void encoders_async(const std::function<void(const json&)> cb, const std::string& ffmpegPath = "ffmpeg");
+    void encoders_async(const std::function<void(const json&)> cb, std::string ffmpegPath = "ffmpeg");
 
     //careful here, cb is executed on another thread, if you use a GUI, queue your fuctions in your main thread, DO NOT EXECUTE GUI FUNCTION DIRECTLY IN THE cb. (with mlgui.2 you can use : App::queue(your_gui_func) to queue your function on the mainthread)
     //the frame is in the JPG format : TODO add other images format
-    void firstFrame(const std::string& filepath, const std::function<void(const std::vector<unsigned char>&)> cb, const std::string& ffmpegPath="ffmpeg");
+    void firstFrame(const std::string& filepath, const std::function<void(const std::vector<unsigned char>&)> cb, std::string ffmpegPath="ffmpeg");
 }
 
 namespace ffprobe

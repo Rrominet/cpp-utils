@@ -106,7 +106,7 @@ class Process
 
 namespace args
 {
-    // its better to use this, it's more os standard. (use - and -- args not = args like the function above)
+    // its better to use this, it's more os standard. (use - and -- args not = args like the function process::parse)
     std::map<std::string, std::string> nparse(const int& argc, char* argv[]);
 
     //alias for nparse

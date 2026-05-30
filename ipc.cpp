@@ -328,7 +328,9 @@ namespace ipc
 
                 if (found)
                 {
-                    const json& args = received["args"];
+                    json args = json::object();
+                    if (received.contains("args") && received["args"].is_object())
+                        args = received["args"];
                     int id = 0;
                     if (received.contains("id"))
                         id = received["id"];

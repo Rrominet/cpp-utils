@@ -150,6 +150,10 @@ std::string network::send(std::string url, const json& data, Method method)
     cmd += " -H \"Content-Type: application/json\"";
     cmd += " -k --http1.1";
 
+#ifndef mydebug
+    cmd += " -s";
+#endif // !mydebug
+
     if (method == POST)
     {
         cmd += " -X POST";

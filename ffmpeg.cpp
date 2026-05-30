@@ -7,8 +7,25 @@
 
 namespace bp = boost::process;
 
-std::string ffmpeg::concatenate(std::vector<std::string> files, const std::string &output, const std::string &ffmpegPath)
+std::string findFFmpeg(const std::string& ffmpegPath)
 {
+    if (files::exists(ffmpegPath))
+        return ffmpegPath;
+    if(files::exists(ffmpegPath + ".exe"))
+        return ffmpegPath + ".exe";
+    if(files::exists("/usr/bin/ffpmeg"))
+        return "/usr/bin/ffpmeg";
+    if(files::exists("/bin/ffpmeg"))
+        return "/bin/ffpmeg";
+    if(files::exists("/usr/local/bin/ffpmeg"))
+        return "/usr/local/bin/ffpmeg";
+
+    return ffmpegPath;
+}
+
+std::string ffmpeg::concatenate(const std::vector<std::string>& files, const std::string &output, std::string ffmpegPath)
+{
+    ffmpegPath = findFFmpeg(ffmpegPath);
     std::string ls = ffmpeg::tmpDir() + files::sep() + "ffmpeg_concat_ls";
     while(files::exists(ls))
         ls = ffmpeg::tmpDir() + files::sep() + "ffmpeg_concat_ls_" + str::random(5);
@@ -30,27 +47,36 @@ std::string ffmpeg::tmpDir()
     return d;
 }
 
-std::string ffmpeg::concat(std::vector<std::string> files, const std::string &output, const std::string &ffmpegPath)
+std::string ffmpeg::concat(const std::vector<std::string>& files, const std::string &output, std::string ffmpegPath)
 {
     return concatenate(files, output, ffmpegPath);
 }
 
-std::string ffmpeg::proxy(const std::string& file, std::string output, const std::string &ffmpegPath)
+std::string ffmpeg::proxy(const std::string& file, std::string output, std::string ffmpegPath)
 {
+    ffmpegPath = findFFmpeg(ffmpegPath);
     std::string cmd = ffmpegPath + " -loglevel 16 -i \"" + file + "\"";
-    cmd += " -c:v mjpeg -y "; 
+    cmd += " -c:v libx264 -y ";
+    cmd += "-preset fast ";
+    cmd += "-crf 30 ";
+    cmd += "-bf 16 ";
+    cmd += "-g 1 ";
+    cmd += "-keyint_min 1 ";
+    cmd += "-movflags +faststart ";
+    cmd += "-pix_fmt yuv420p ";
     cmd += "-threads " + std::to_string(th::maxSystem()) + " ";
     cmd += "-progress - ";
     if (output.empty())
     {
-        output = files::parent(file) + files::sep() + files::baseName(file) + "_proxy.avi";
+        output = files::parent(file) + files::sep() + files::baseName(file) + "_proxy.mp4";
     }
     cmd += "\"" + output + "\"";
     return cmd;
 }
 
-std::string ffmpeg::raw(const std::string& file, const std::string& ffmpegPath)
+std::string ffmpeg::raw(const std::string& file, std::string ffmpegPath)
 {
+    ffmpegPath = findFFmpeg(ffmpegPath);
     std::string cmd = ffmpegPath + " -i \"" + file + "\"";
     cmd += " -loglevel quiet -f rawvideo -pix_fmt rgb24 pipe:1";
 
@@ -58,8 +84,9 @@ std::string ffmpeg::raw(const std::string& file, const std::string& ffmpegPath)
     return cmd;
 }
 
-std::string ffmpeg::raw(const std::string& file, const std::string& start, const std::string& duration, const std::string& ffmpegPath)
+std::string ffmpeg::raw(const std::string& file, const std::string& start, const std::string& duration, std::string ffmpegPath)
 {
+    ffmpegPath = findFFmpeg(ffmpegPath);
     std::string cmd = ffmpegPath + " -ss " + start + " -t " + duration;
     cmd += " -i \"" + file + "\"";
     cmd += " -loglevel quiet -f rawvideo -pix_fmt rgb24 pipe:1";
@@ -68,16 +95,18 @@ std::string ffmpeg::raw(const std::string& file, const std::string& start, const
     return cmd;
 }
 
-std::string ffmpeg::pcm(const std::string& file, const std::string& ffmpegPath)
+std::string ffmpeg::pcm(const std::string& file, std::string ffmpegPath)
 {
+    ffmpegPath = findFFmpeg(ffmpegPath);
     std::string cmd = ffmpegPath + " -i \"" + file + "\"";
     cmd += " -loglevel quiet -f f32le pipe:1";
     lg(cmd);
     return cmd;
 }
 
-std::string ffmpeg::wav(const std::string& file, const std::string output, const std::string& ffmpegPath)
+std::string ffmpeg::wav(const std::string& file, const std::string output, std::string ffmpegPath)
 {
+    ffmpegPath = findFFmpeg(ffmpegPath);
     std::string routput = output ;
     if (routput.empty())
         routput = files::parent(file) + files::sep() + files::baseName(file) + ".wav";
@@ -85,8 +114,9 @@ std::string ffmpeg::wav(const std::string& file, const std::string output, const
     return ffmpegPath + " -i \"" + file + "\" \"" + routput + "\"";
 }
 
-std::string ffmpeg::web(const std::string& file, const std::string output, const std::string& ffmpegPath)
+std::string ffmpeg::web(const std::string& file, const std::string output, std::string ffmpegPath)
 {
+    ffmpegPath = findFFmpeg(ffmpegPath);
     std::string routput = output ;
     if (routput.empty())
         routput = file;
@@ -376,8 +406,9 @@ json parse_encoder_line(std::string line)
     return r;
 }
 
-json ffmpeg::encoders(const std::string& ffmpegPath)
+json ffmpeg::encoders(std::string ffmpegPath)
 {
+    ffmpegPath = findFFmpeg(ffmpegPath);
     std::vector<std::string> cmd = {ffmpegPath, "-encoders"};
     auto out = process::exec(cmd);
 
@@ -404,8 +435,9 @@ json ffmpeg::encoders(const std::string& ffmpegPath)
     return _r;
 }
 
-void ffmpeg::encoders_async(const std::function<void(const json&)> cb, const std::string& ffmpegPath)
+void ffmpeg::encoders_async(const std::function<void(const json&)> cb, std::string ffmpegPath)
 {
+    ffmpegPath = findFFmpeg(ffmpegPath);
     auto f = [cb, ffmpegPath]
     {
         cb(ffmpeg::encoders(ffmpegPath));
@@ -453,7 +485,7 @@ namespace ffmpeg
         std::thread(del).detach();
     }
 
-    void firstFrame(const std::string& filepath, const std::function<void(const std::vector<unsigned char>&)> cb, const std::string& ffmpegPath)
+    void firstFrame(const std::string& filepath, const std::function<void(const std::vector<unsigned char>&)> cb, std::string ffmpegPath)
     {
         auto fp = std::make_unique<FirstFramePc>();
         FirstFramePc* fp_ptr = nullptr;
