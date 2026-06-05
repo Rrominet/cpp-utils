@@ -19,6 +19,13 @@ struct ProcessRuntimeData
     std::unique_ptr<std::thread> errthread;
 };
 
+struct ProcessOut
+{
+    std::string stdout;
+    std::string stderr;
+    int exitCode = -1;
+};
+
 class Process
 {
     public : 

@@ -28,7 +28,6 @@
 #define PROPS _syncRuntime("Process Mutex"), _output("Output Mutex"), _error("Error Mutex"),\
        _treatOutputAsBinary(false), _outBinaryBufSize(8192), _checker()
 
-
 Process::Process() : PROPS
 {
     _init();
