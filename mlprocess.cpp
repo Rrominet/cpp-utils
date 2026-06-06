@@ -629,7 +629,8 @@ std::string process::exec(const char* cmd, const char* workingdir)
     char buffer[128];
 
     FILE* pipe = popen(cmd, "r");
-    if (!pipe) throw std::runtime_error("popen() failed!");
+    if (!pipe)
+        throw std::runtime_error("popen() failed!");
     try {
         while (fgets(buffer, sizeof(buffer), pipe) != NULL)
             result += buffer;

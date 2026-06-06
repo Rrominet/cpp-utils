@@ -40,6 +40,7 @@ srcs = [
         "../commands",
         "../sound",
         "../md4c",
+        "../ai",
         libs + "/sha3/sha3.c",
         ]
 

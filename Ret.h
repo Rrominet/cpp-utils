@@ -28,6 +28,14 @@ namespace ml
             Ret<bool> success(const std::string& message="");
 
         template <typename T=bool>
+            Ret<T> ok(T value, const std::string& message="")
+            {
+                return success<T>(value, message);
+            }
+
+            Ret<bool> ok(const std::string& message="");
+
+        template <typename T=bool>
             Ret<T> failure(const std::string& message="")
             {
                 lg((std::string)"ml::Ret Failure : " + message); 

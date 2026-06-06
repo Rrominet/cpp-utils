@@ -12,5 +12,9 @@ namespace ml
             ret.success = true;
             return ret;
         }
+        Ret<bool> ok(const std::string& message)
+        {
+            return success(message);
+        }
     }
 }

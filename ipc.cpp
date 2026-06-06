@@ -158,6 +158,37 @@ namespace ipc
             send(p, to_send, cb);
     }
 
+    json send_sync(Process* p, const json& data)
+    {
+        json result;
+        std::mutex mtx;
+        std::condition_variable cv;
+        bool done = false;
+
+        send(p, data, [&](const json& response)
+        {
+            std::lock_guard<std::mutex> lock(mtx);
+            result = response;
+            done = true;
+            cv.notify_one();
+        });
+
+        std::unique_lock<std::mutex> lock(mtx);
+        cv.wait(lock, [&]{ return done; });
+        return result;
+    }
+
+    json call_sync(Process*p, const std::string &function, const json& args, bool sync)
+    {
+        json to_send;
+        to_send["function"] = function;
+        to_send["args"] = args;
+        if (sync)
+            to_send["sync"] = sync;
+
+        return send_sync(p, to_send);
+    }
+
     void subscribe(Process*p, const std::string& event, const std::function<void(const json& response)>& cb)
     {
         auto f = [event, cb](const std::string& line)
