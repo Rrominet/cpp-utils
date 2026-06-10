@@ -32,6 +32,7 @@ extern "C"
 #endif
 #include "../mlMath.h"
 #include "../Perfs.h"
+#include <algorithm>
 
 namespace fs = std::filesystem;
 
@@ -365,6 +366,10 @@ namespace files
 
     int lock(const std::string& path, bool shared )
     {
+#ifdef __EMSCRIPTEN__
+        lg("files::lock not implemented on emscripten yet.");
+        return 0;
+#else
         std::string content;
         auto fd = open(path.c_str(), O_RDONLY, 0666);
         if (fd < 0)
@@ -383,12 +388,16 @@ namespace files
 
         lg("file " + path + " locked.");
         return fd;
+#endif
     }
 
     int exlock(const std::string& path){return files::lock(path, false);}
 
     void unlock(int fd)
     {
+#ifdef __EMSCRIPTEN__
+        lg("files::unlock not implemented on emscripten yet.");
+#else
         int res = flock(fd, LOCK_UN);
         if (res < 0)
         {
@@ -398,10 +407,15 @@ namespace files
 
         lg("filedescriptor " + std::to_string(fd) + " unlocked.");
         close(fd);
+#endif
     }
 
     std::string read(const std::string& path)
     {
+#ifdef __EMSCRIPTEN__
+        lg("files::read not implemented on emscripten yet.");
+        return "";
+#else
         int fd = open(path.c_str(), O_RDONLY);
         if (fd < 0)
             throw std::runtime_error("Unable to open file " + path + " to read it.");
@@ -417,12 +431,17 @@ namespace files
 
         close(fd);
         return content;
+#endif
     }
 
     std::string content(const std::string& path){return files::read(path);}
 
     size_t write(const std::string& path, const std::string& content, int flags, int permissions)
     {
+#ifdef __EMSCRIPTEN__
+        lg("files::write not implemented on emscripten yet.");
+        return 0;
+#else
         int fd = open(path.c_str(), flags , permissions);
         if (fd < 0)
         {
@@ -448,14 +467,31 @@ namespace files
         close(fd);
 
         return written;
+#endif
     }
 
-    size_t write(const std::string& path, const std::string& content, int permissions){return files::write(path, content, O_WRONLY | O_CREAT, permissions);}
-    size_t append(const std::string& path, const std::string& content){return files::write(path, content, O_WRONLY | O_APPEND | O_CREAT, 0666);}
+    size_t write(const std::string& path, const std::string& content, int permissions){
+#ifdef __EMSCRIPTEN__
+        return 0;
+#else
+        return files::write(path, content, O_WRONLY | O_CREAT, permissions);
+#endif
+    }
+    size_t append(const std::string& path, const std::string& content){
+#ifdef __EMSCRIPTEN__
+        return 0;
+#else
+        return files::write(path, content, O_WRONLY | O_APPEND | O_CREAT, 0666);
+#endif
+    }
 
     size_t write(const std::string& path, const std::vector<unsigned char>& content, int flags, int permissions)
     {
-               int fd = open(path.c_str(), flags , permissions);
+#ifdef __EMSCRIPTEN__
+        lg("files::write not implemented on emscripten yet.");
+        return 0;
+#else
+       int fd = open(path.c_str(), flags , permissions);
         if (fd < 0)
         {
             int errnum = errno;
@@ -480,11 +516,15 @@ namespace files
         close(fd);
 
         return written;
-
+#endif
     }
 
     size_t write(const std::string& path, void* content, size_t size, int flags, int permissions)
     {
+#ifdef __EMSCRIPTEN__
+        lg("files::write not implemented on emscripten yet.");
+        return 0;
+#else
        int fd = open(path.c_str(), flags , permissions);
         if (fd < 0)
         {
@@ -509,10 +549,23 @@ namespace files
 
         close(fd);
         return written;
+#endif
     }
 
-size_t write(const std::string& path, const std::vector<unsigned char>& content, int permissions){return files::write(path, content, O_WRONLY | O_CREAT, permissions);}
-size_t write(const std::string& path, void* content, size_t size, int permissions){return files::write(path, content, size, O_WRONLY | O_CREAT, permissions);}
+size_t write(const std::string& path, const std::vector<unsigned char>& content, int permissions){
+#ifdef __EMSCRIPTEN__
+    return 0;
+#else
+    return files::write(path, content, O_WRONLY | O_CREAT, permissions);
+#endif
+}
+size_t write(const std::string& path, void* content, size_t size, int permissions){
+#ifdef __EMSCRIPTEN__
+    return 0;
+#else
+    return files::write(path, content, size, O_WRONLY | O_CREAT, permissions);
+#endif
+}
 
     size_t size(const std::string& path)
     {
@@ -550,11 +603,13 @@ size_t write(const std::string& path, void* content, size_t size, int permission
         return _r;
     }
 
-    std::vector<std::string> ls(const std::string& path, SortType sort, bool onlyFilename)
+    std::vector<std::string> ls(const std::string& path, SortType sort, bool onlyFilename, const std::vector<std::string>& exclude)
     {
         std::vector<std::string> files;
         for (const auto& entry : fs::directory_iterator(path, fs::directory_options::follow_directory_symlink))
         {
+            if (std::find(exclude.begin(), exclude.end(), files::name(entry.path().string())) != exclude.end())
+                continue;
             if (onlyFilename)
                 files.push_back(files::name(entry.path().string()));
             else
@@ -574,12 +629,28 @@ size_t write(const std::string& path, void* content, size_t size, int permission
         return files;
     }
 
-    std::vector<std::string> ls_reccursive(const std::string& path, SortType sort , bool onlyFilename)
+    std::vector<std::string> ls_reccursive(const std::string& path, SortType sort , bool onlyFilename, const std::vector<std::string>& exclude, bool followSymlink)
     {
         std::vector<std::string> files;
-        auto iterator = fs::recursive_directory_iterator(path, fs::directory_options::follow_directory_symlink);
+        fs::recursive_directory_iterator iterator;
+        if (followSymlink)
+            iterator = fs::recursive_directory_iterator(path, fs::directory_options::follow_directory_symlink);
+        else 
+            iterator = fs::recursive_directory_iterator(path);
         for (const auto& entry : iterator)
         {
+            bool excludeit = false;
+            for (const auto& e : exclude)
+            {
+                if (entry.path().string().find(e) != std::string::npos)
+                {
+                    excludeit = true;
+                    break;
+                }
+            }
+            if (excludeit)
+                continue;
+
             if (onlyFilename)
                 files.push_back(files::name(entry.path().string()));
             else
@@ -967,5 +1038,34 @@ size_t write(const std::string& path, void* content, size_t size, int permission
                 return candidate;
             i++;
         }
+    }
+
+    bool isText(const std::string& path)
+    {
+        std::ifstream file(path, std::ios::binary);
+
+        if (!file.is_open())
+            return false;
+
+        int chunkSize = 1024;
+        std::string buffer(chunkSize, '\0');
+        file.read(&buffer[0], chunkSize);
+        size_t bytesRead = file.gcount();
+        buffer.resize(bytesRead);
+
+        // Check for null bytes - dead giveaway for binary
+        if (buffer.find('\0') != std::string::npos)
+            return true;
+
+        // Check for high ratio of non-printable characters
+        size_t nonPrintable = 0;
+        for (unsigned char c : buffer) {
+            if (c < 0x20 && c != '\n' && c != '\r' && c != '\t') {
+                nonPrintable++;
+            }
+        }
+
+        // If more than 10% non-printable -> binary
+        return (nonPrintable * 100 / bytesRead) > 10;
     }
 }

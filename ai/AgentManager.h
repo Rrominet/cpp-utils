@@ -31,6 +31,9 @@ namespace ml
             void applyConfigToAllAgents(const json& config, const ml::Vec<std::string>& exceptIds={});
             void applyConfigToAllAgents(const std::string& configpath, const ml::Vec<std::string>& exceptIds={});
 
+            void loadAllAgents();
+            ml::Vec<std::string> agentIds() const;
+
         private : 
             json _globalConfig = json::object(); //bp cg
             ml::Vec<std::string> _globalConfigExceptIds = ml::Vec<std::string>(); //bp cgs

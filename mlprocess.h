@@ -108,6 +108,11 @@ class Process
         void _joinThreads();
 
         th::ThreadChecker _checker;
+        
+        // protects _processError
+        mutable std::mutex _processErrorMutex;
+
+        mutable std::mutex _cbsMtx;
 };
 
 
@@ -126,7 +131,7 @@ namespace args
 namespace process
 {
     //will take stdout or stderr and exec cb for every line (\r or \n)
-    void getProcessStream(bp::ipstream& stream, const ml::Vec<std::function<void(const std::string& line)>>& cbs, th::Safe<std::string>* out=nullptr);
+    void getProcessStream(bp::ipstream& stream, const ml::Vec<std::function<void(const std::string& line)>>& cbs, th::Safe<std::string>* out=nullptr, std::mutex* cb_mtx=nullptr);
     std::vector<std::string> parse(const std::string& cmd);
     std::string to_string(const std::vector<std::string>& cmd);
 
@@ -134,11 +139,13 @@ namespace process
     std::string exec(const std::string& cmd, const std::string& workingdir="");
     std::string exec(const std::vector<std::string>& cmd, const std::string& workingdir="");
 
-    // this use boot, not the os specific pipes
-    // if working dir is empty, the current working dir is used
-    // the output from stderr will be stored in error if not null
+    ProcessOut exec2(const char* cmd, const char* workingdir);
+    ProcessOut exec2(const std::string& cmd, const std::string& workingdir="");
+    ProcessOut exec2(const std::vector<std::string>& cmd, const std::string& workingdir="");
+
     std::string exec(const std::string& cmd, std::string inData, const std::string& workingdir, const bp::environment& env = boost::this_process::environment(), std::string* error=nullptr);
 
+    void cleanupFinished(); // remove finished processes from internal list
     Process* start(const std::string& cmd, const std::string& workingdir="");
 
     Process* start(const std::string& cmd, std::function<void ()> onDone, const std::string& workingdir="");

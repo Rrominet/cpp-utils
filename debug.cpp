@@ -32,7 +32,11 @@ void db::log(const vector<string> &vec)
 void db::log_sync(const std::string& str)
 {
     std::lock_guard<std::mutex> lock(_lgmtx);
+#ifdef __EMSCRIPTEN__
+    std::cout << str << std::endl;
+#else
     std::cerr << str << std::endl;
+#endif
 }
 
 namespace db

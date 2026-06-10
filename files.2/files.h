@@ -95,8 +95,8 @@ namespace files
 
     std::vector<unsigned char> bContent(const std::string& path);
 
-    std::vector<std::string> ls(const std::string& path, SortType sort = NAME, bool onlyFilename=false);
-    std::vector<std::string> ls_reccursive(const std::string& path, SortType sort = NAME, bool onlyFilename=false);
+    std::vector<std::string> ls(const std::string& path, SortType sort = NAME, bool onlyFilename=false, const std::vector<std::string>& exclude={});
+    std::vector<std::string> ls_reccursive(const std::string& path, SortType sort = NAME, bool onlyFilename=false, const std::vector<std::string>& exclude={}, bool followSymlink=true);
 
     // return false if the file doesn't exist
     // throw if there was another error
@@ -166,4 +166,6 @@ namespace files
 
     FileType type(const std::string& path);
     std::string incremented(const std::string& path);
+
+    bool isText(const std::string& path);
 }

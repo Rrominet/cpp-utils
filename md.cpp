@@ -39,6 +39,7 @@ namespace md
                 return "td";
                 break;
         }
+        return "div";
     }
 
     std::string span_type(MD_SPANTYPE type)
@@ -67,6 +68,7 @@ namespace md
                 return "i";
                 break;
         }
+        return "span";
     }
 
     std::function<void(MD_BLOCKTYPE, void*, void*)> _on_enter_block;

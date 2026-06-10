@@ -1,10 +1,8 @@
 #include "str.h"
 #include "debug.h"
-#include <boost/algorithm/string/case_conv.hpp>
 #include <time.h>
 #include <algorithm>
 #include <iomanip>
-#include <boost/algorithm/string.hpp>
 #include "vec.h"
 #include <cctype>
 #include <sstream>
@@ -104,6 +102,11 @@ std::string str::random(size_t length, const int &seed)
 
 std::string str::replace(const std::string& container, const std::string& search, const std::string& replace, u_int64_t max)
 {
+    if (container.empty())
+        return container;
+    if (search.empty())
+        return container;
+
     size_t index = 0;
     std::string _r = container;
     int count = 0;
@@ -127,12 +130,18 @@ std::string str::replace(const std::string& container, const std::string& search
 
 std::string str::lower(std::string s)
 {
-    return boost::algorithm::to_lower_copy(s);
+    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) {
+        return std::tolower(c);
+    });
+    return s;
 }
 
 std::string str::upper(std::string s)
 {
-    return boost::algorithm::to_upper_copy(s);
+    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) {
+        return std::toupper(c);
+    });
+    return s;
 }
 
 std::string str::capitalize(const std::string& s, bool everyWord)

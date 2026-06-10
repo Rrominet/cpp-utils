@@ -139,9 +139,9 @@ namespace ipc
 #ifdef mydebug
         files::append(_ipcdebugfile, to_send.dump() + "\n");
 #endif
-        p->write(to_send.dump());
         if (cb)
             addToResponse(p, to_send["id"], cb);
+        p->write(to_send.dump());
     }
 
     void call(Process*p, const std::string &function, const json& args, const std::function<void(const json& response)>& cb, bool sync)
@@ -161,20 +161,19 @@ namespace ipc
     json send_sync(Process* p, const json& data)
     {
         json result;
-        std::mutex mtx;
-        std::condition_variable cv;
-        bool done = false;
+        std::atomic<bool> done = false;
 
         send(p, data, [&](const json& response)
         {
-            std::lock_guard<std::mutex> lock(mtx);
             result = response;
             done = true;
-            cv.notify_one();
         });
 
-        std::unique_lock<std::mutex> lock(mtx);
-        cv.wait(lock, [&]{ return done; });
+        while (!done)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+
         return result;
     }
 

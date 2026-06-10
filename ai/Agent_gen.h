@@ -26,3 +26,15 @@ std::string description(){return _description;}
 const std::string& description() const {return _description;}
 void setDescription(const std::string& description){_description = description;}
 
+std::string error(){return _error;}
+const std::string& error() const {return _error;}
+void setError(const std::string& error){_error = error;}
+
+std::string root(){return _root;}
+const std::string& root() const {return _root;}
+void setRoot(const std::string& root){_root = root;}
+
+std::string rawllm(){return _rawllm;}
+const std::string& rawllm() const {return _rawllm;}
+
+

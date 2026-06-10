@@ -2,6 +2,8 @@
 #include "../files.2/files.h"
 #include "../str.h"
 
+#include "./BashAgent.h"
+
 namespace ml
 {
     Ret<std::string> AgentManager::execAgent(const std::string& id, const std::string& message)
@@ -21,7 +23,10 @@ namespace ml
         auto r = cp.exec(&_llm);
         if (!r.success)
             return ml::ret::fail<std::string>(r.message);
-        return ml::ret::ok<std::string>(cp.outData());
+        if (cp.error().empty())
+            return ml::ret::ok<std::string>(cp.outData());
+        else 
+            return ml::ret::fail<std::string>(cp.error());
     }
 
     Ret<std::string> AgentManager::chainAgents(const ml::Vec<std::string> ids, const std::string& message)
@@ -63,7 +68,16 @@ namespace ml
 
             auto r = _agentsCopy[i].exec(&_llm);
             if (!r.success)
+            {
                 errors += "Error in the Agent " + ids[i] + " : " + r.message + "\n";
+                break;
+            }
+
+            if (!_agentsCopy[i].error().empty())
+            {
+                errors += "Error in the Agent " + ids[i] + " : " + _agentsCopy[i].error() + "\n";
+                break;
+            }
         }
 
         if (errors.empty())
@@ -110,4 +124,17 @@ namespace ml
         }
         _globalConfigExceptIds = exceptIds;
     }
+
+    void AgentManager::loadAllAgents()
+    {
+        this->addAgent(BashAgent());
+    }
+
+ml::Vec<std::string> AgentManager::agentIds() const
+{
+    ml::Vec<std::string> ids;
+    for (const auto& pair : _agents)
+        ids.push_back(pair.first);
+    return ids;
+}
 }
