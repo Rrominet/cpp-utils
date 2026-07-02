@@ -105,9 +105,10 @@ namespace ipc
             {
                 lg("cannot parse line for ipc response : " << line);
                 lg(e.what());
+                return;
             }
 
-            if (j["id"] == id)
+            if (j.contains("id") && j["id"].is_number() && j["id"] == id)
             {
                 try
                 {

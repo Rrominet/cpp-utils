@@ -1006,6 +1006,7 @@ size_t write(const std::string& path, void* content, size_t size, int permission
     FileType type(const std::string& path)
     {
         auto ext = files::ext(path);
+        ext = str::lower(ext);
         if (vc::contains(_text_extensions, ext))
             return FileType::TEXT;
         if (vc::contains(_video_extensions, ext))
