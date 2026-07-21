@@ -1,53 +1,53 @@
-[CRITICAL] ObjectsManager.h — destroy()
-Problem: `std::lock_guard lk(_free)` is missing a semicolon before `_free.data().push_back(handle.id);`.
-Why it matters: This is a syntax error. The whole translation unit fails to compile. Nothing runs.
-Fix: Add `;` after `std::lock_guard lk(_free)`.
+[CRITICAL] ObjectsManager.h — `slot.object = std::make_unique<S>(std::forward<Args>(args)...);`
+Problem: `std::any` requires the contained type to be CopyConstructible. `std::unique_ptr<S>` is move-only. Assigning a `unique_ptr<S>` rvalue into `std::any` does not satisfy the constructor/assignment constraints (`is_copy_constructible`) — this is either a hard compile error or relies on implementation-defined/ill-formed-NDR behavior depending on the standard library.
+Why it matters: The entire storage mechanism of this class is built on an operation that is not guaranteed to compile in standard C++. If it does compile on your toolchain, you're depending on undefined/non-portable behavior, not a language guarantee.
+Fix: Don't store `unique_ptr<T>` in `std::any`. Either store the raw object by value in `std::any` (if copyable) or use a type-erased owning wrapper (e.g. a small `std::any`-like holder that stores a `void*` + deleter + typeid, or just use `std::shared_ptr<void>` with `static_pointer_cast` instead of `std::any` + `unique_ptr`).
 
 ---
 
-[CRITICAL] ObjectsManager.h — create() / destroy()
-Problem: `_slots.size()`, `_slots.emplace_back()`, `_slots.at(id)` are called directly on `_slots`, which is a `th::Safe<std::vector<Slot<T>>>`. `Safe` only exposes `lock()`, `unlock()`, `try_lock()`, `data()`, `mtx()` — it has no `size()`, `emplace_back()`, or `at()`.
-Why it matters: Compile error, "no member named ...". Code will not build at all.
-Fix: Use `_slots.data().size()`, `_slots.data().emplace_back()`, `_slots.data().at(id)` everywhere.
+[HIGH] ObjectsManager.h — `create()`
+Problem: If `S`'s constructor throws, the slot's id has already been taken from `_free` (or newly allocated) but never gets pushed back to `_free`, and `slot.object` stays empty with `slot.generation` unchanged.
+Why it matters: That slot is permanently leaked — never reusable, `get()` returns nullptr forever, `destroy()` fails forever ("no value"). Repeated failures silently shrink your usable capacity.
+Fix: Wrap the construction in try/catch (or use a scope guard) that pushes `id` back onto `_free` if construction throws, before rethrowing.
 
 ---
 
-[CRITICAL] ObjectsManager.h — get()
-Problem: `get()` returns a raw pointer obtained under `_slots` lock, but the lock is released the instant the function returns. Nothing prevents another thread from calling `destroy()` on the same handle right after, which calls `slot.object.reset()`.
-Why it matters: Caller ends up dereferencing a freed object — classic use-after-free, will segfault or corrupt memory under any real concurrency.
-Fix: Either return a locked accessor/shared_ptr with proper lifetime guarantee, or make callers hold the manager lock for the duration of use (defeats purpose), or use reference counting per-slot.
+[HIGH] ObjectsManager.h — `get()` (both overloads), `try { std::any_cast<...> } catch(bad_any_cast)`
+Problem: Using exceptions for expected/normal type-mismatch control flow, on every single `get()` call.
+Why it matters: Exceptions are expensive and this is a hot-path accessor. It's also bad practice to use exceptions for a condition that's a normal, anticipated outcome (wrong handle type).
+Fix: Use the pointer overload: `auto* ptr = std::any_cast<std::unique_ptr<S>>(&slot.object); return ptr ? ptr->get() : nullptr;` — no exceptions needed.
 
 ---
 
-[CRITICAL] ObjectsManager.h — Slot<T>::object / destroy()
-Problem: `Slot<T>` stores `std::unique_ptr<T> object`, but objects are created as derived type `S` via `std::make_unique<S>(...)` and stored/destroyed through the base `T*`. If `T` has no virtual destructor, `slot.object.reset()` invokes `~T()` instead of `~S()`.
-Why it matters: Undefined behavior — derived destructor and members never run, heap corruption possible, crash likely eventually (double free / leaked resources / corrupted allocator metadata).
-Fix: Require/enforce `T` to have a virtual destructor (static_assert `std::has_virtual_destructor_v<T>`).
+[MEDIUM] ObjectsManager.h — `destroy()`, generation increment logic
+Problem: Generation is a 32-bit counter. After `2^32` create/destroy cycles on the same slot it wraps back to 1 (0 is explicitly skipped, but 1, 2, 3... repeat).
+Why it matters: This is the classic ABA problem for generational handles — an old stale handle could theoretically become "valid" again against a completely different object once the counter wraps. Low probability, but real, and it's the entire point of the generation field to prevent this.
+Fix: Either accept the extremely low risk explicitly (document it), or use a 64-bit generation counter to make wraparound practically impossible.
 
 ---
 
-[HIGH] ObjectsManager.h — create()
-Problem: `std::make_unique<S>(std::forward<Args>(args)...)` is called while holding the `_slots` lock (non-recursive mutex). If `S`'s constructor calls back into the same `ObjectsManager` (create/get/destroy) on the same thread, the thread deadlocks on its own mutex.
-Why it matters: Non-recursive `std::mutex` relocking from the same thread is undefined behavior (typically hangs forever, not a clean crash — worse to debug).
-Fix: Don't hold the lock during arbitrary user-code execution; reserve the slot under lock, release, construct object, then commit under lock again — or document/forbid reentrancy.
+[MEDIUM] ObjectsManager.h — `create()`, `id = _slots.size();`
+Problem: If `_slots` grows to `UINT_MAX` entries, a newly assigned `id` can equal `std::numeric_limits<unsigned int>::max()`, which is the sentinel value used by `Handle::valid()` to mean "invalid".
+Why it matters: That object's handle would report `valid() == false` even though it was just created — silent, hard-to-diagnose corruption at scale.
+Fix: Guard against `_slots.size() >= UINT_MAX` in `create()` and fail explicitly, or use a wider integer type for id.
 
 ---
 
-[HIGH] ObjectsManager.h — create()
-Problem: If `std::make_unique<S>(...)` throws, the slot id was already consumed (either a brand-new emplaced slot or popped from `_free`), but `slot.object` stays null and the id is never returned to `_free` nor rolled back.
-Why it matters: Permanent slot leak on every failed construction; over time exhausts the vector/generation space uselessly.
-Fix: Wrap construction in try/catch, and on exception push the id back to `_free` (or roll back the emplace) before rethrowing.
+[LOW] ObjectsManager.h — `get()` const/non-const overloads
+Problem: Full logic duplicated between `S* get()` and `const S* get() const`.
+Why it matters: Two copies to keep in sync; any future fix must be applied twice or they drift.
+Fix: Implement the const version in terms of the non-const one via `const_cast`, or factor shared logic into a private helper.
 
 ---
 
-[MEDIUM] ObjectsManager.h — create()
-Problem: `unsigned int id = _slots.data().size();` truncates a `size_t` into `unsigned int`.
-Why it matters: On platforms/uses where slot count exceeds 4294967295, id wraps silently, corrupting handle-to-slot mapping (writes to wrong slot). Unlikely in practice, but a real latent bug.
-Fix: Use a wide enough type or assert size doesn't exceed `UINT_MAX`.
+[LOW] ObjectsManager.h — `destroy()` return type `ml::Ret<>`
+Problem: No `[[nodiscard]]` on `destroy()` (or on `create()` return of `Handle<S>`), and no enforcement that callers check failure.
+Why it matters: A caller ignoring the `Ret<>` result silently proceeds as if destruction succeeded (e.g., wrong generation, double free attempt) with no feedback at all.
+Fix: Mark `destroy()` (and ideally `create()`) `[[nodiscard]]`.
 
 ---
 
-[LOW] ObjectsManager.h — Handle<T>::valid()
-Problem: `generation != 0` is used as "not invalid", but a default-constructed `Handle` has `generation = 0` while a freshly created slot starts at `generation = 1`. Fine today, but nothing stops external code from constructing a `Handle{someId, 0}` that looks invalid while `id` isn't the sentinel.
-Why it matters: Fragile invariant relies on two unrelated fields both being "correct" for validity; easy to break with future edits (e.g., changing default generation).
-Fix: Make Handle constructible only via the manager, or add a single explicit "valid" flag instead of dual sentinel logic.
+[LOW] ObjectsManager.h — `get()` returned raw pointer
+Problem: Nothing prevents a caller from holding onto the raw `S*` past a subsequent `destroy()` call on the same handle.
+Why it matters: Classic dangling-pointer trap inherent to handle systems if not documented — users unfamiliar with the pattern will use the pointer long-lived and get UB.
+Fix: Document clearly that the pointer is only valid for transient/immediate use and must be re-fetched via `get()` each time, never cached.

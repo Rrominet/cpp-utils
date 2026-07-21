@@ -1,6 +1,5 @@
 #pragma once
 #include "../ObjectsManager.h"
-#include "./Entity.h"
 
 namespace ml
 {
@@ -9,11 +8,11 @@ namespace ml
         class Workflow 
         {
             public :
-                const ObjectsManager<Entity>& manager() const { return _manager; }
-                ObjectsManager<Entity>& manager() { return _manager; }
+                const ObjectsManager& manager() const { return _manager; }
+                ObjectsManager& manager() { return _manager; }
 
             private: 
-                ObjectsManager<Entity> _manager;
+                ObjectsManager _manager;
         };
     }
 }
