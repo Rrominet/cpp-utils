@@ -1233,6 +1233,7 @@ std::string process::onlyReadables(const std::string& input) {
     return std::regex_replace(input, ansiPattern, "");
 }
 
+//TODO : transform this to a proper pty call instead - cleaner and more control
 std::vector<std::string> process::wrappedInScript(const std::vector<std::string>& cmd)
 {
     std::string c = process::to_string(cmd);	

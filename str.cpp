@@ -1,5 +1,6 @@
 #include "str.h"
 #include "debug.h"
+#include <string_view>
 #include <time.h>
 #include <algorithm>
 #include <iomanip>
@@ -645,177 +646,88 @@ char** str::fromStringListCopy(const std::vector<std::string>& vec)
     return r;
 }
 
-bool str::startsWith(const std::string& s, const std::string& start)
+bool str::startsWith(const std::string& s, const std::string& start, bool trimWithSpaces)
 {
     if (start.size() > s.size())
         return false;
-    return s.compare(0, start.size(), start) == 0;
+    std::string s2 = "";
+    if (!trimWithSpaces)
+        s2 = s;
+    else
+    {
+        for (int i=0; i<s.size(); i++)
+        {
+            if (s[i] != ' ')
+                s2 += s[i];
+        }
+    }
+    return s2.compare(0, start.size(), start) == 0;
 }
 
-namespace ml
+namespace str
 {
-    String::String() {
-        str_ = "";
-    }
-
-    String::String(const char* str) {
-        str_ = std::string(str);
-    }
-
-    String::String(const char c)
+    constexpr bool isAsciiSpace(char character) noexcept
     {
-        str_.push_back(c);
+        return character == ' '  ||
+               character == '\t' ||
+               character == '\n' ||
+               character == '\r' ||
+               character == '\f' ||
+               character == '\v';
     }
 
-    String::String(const std::string& str) {
-        str_ = str;
-    }
-
-    String::String(const String& other) {
-        str_ = other.str_;
-    }
-
-    String& String::operator=(const String& other) {
-        str_ = other.str_;
-        return *this;
-    }
-
-    String& String::operator=(const char* str) {
-        str_ = std::string(str);
-        return *this;
-    }
-
-    String& String::operator=(const std::string& str) {
-        str_ = str;
-        return *this;
-    }
-
-    String& String::operator+=(const String& other) {
-        str_ += other.str_;
-        return *this;
-    }
-
-    String& String::operator+=(const char* str) {
-        str_ += std::string(str);
-        return *this;
-    }
-
-    String& String::operator+=(const std::string& str) {
-        str_ += str;
-        return *this;
-    }
-
-    String operator+(const String& lhs, const String& rhs) {
-        String result(lhs);
-        result += rhs;
-        return result;
-    }
-
-    String operator+(const String& lhs, const char* rhs) {
-        String result(lhs);
-        result += rhs;
-        return result;
-    }
-
-    String operator+(const char* lhs, const String& rhs) {
-        String result(lhs);
-        result += rhs;
-        return result;
-    }
-
-    String operator+(const String& lhs, const std::string& rhs) {
-        String result(lhs);
-        result += rhs;
-        return result;
-    }
-
-    String operator+(const std::string& lhs, const String& rhs) {
-        String result(lhs);
-        result += rhs;
-        return result;
-    }
-    bool operator==(const String& lhs, const String& rhs) {
-        return lhs.str() == rhs.str();
-    }
-
-    bool operator!=(const String& lhs, const String& rhs) {
-        return lhs.str() != rhs.str();
-    }
-
-    bool operator<(const String& lhs, const String& rhs) {
-        return lhs.str() < rhs.str();
-    }
-
-    bool operator>(const String& lhs, const String& rhs) {
-        return lhs.str() > rhs.str();
-    }
-
-    bool operator<=(const String& lhs, const String& rhs) {
-        return lhs.str() <= rhs.str();
-    }
-
-    bool operator>=(const String& lhs, const String& rhs) {
-        return lhs.str() >= rhs.str();
-    }
-
-    const char* String::c_str() const {
-        return str_.c_str();
-    }
-
-    std::string String::str() const {
-        return str_;
-    }
-
-    bool String::empty() const {
-        return str_.empty();
-    }
-
-    std::size_t String::size() const {
-        return str_.size();
-    }
-
-    void String::clear() {
-        str_.clear();
-    }
-
-    String String::substr(std::size_t pos, std::size_t len) const {
-        return String(str_.substr(pos, len));
-    }
-    std::size_t String::find(const String& str, std::size_t pos) const {
-        return str_.find(str.str_, pos);
-    }
-
-    std::size_t String::find(const char* str, std::size_t pos) const {
-        return str_.find(str, pos);
-    }
-
-    std::size_t String::find(char c, std::size_t pos) const {
-        return str_.find(c, pos);
-    }
-
-    void String::replace(std::size_t pos, std::size_t len, const String& str) {
-        str_.replace(pos, len, str.str_);
-    }
-
-    void String::replace(std::size_t pos, std::size_t len, const char* str) {
-        str_.replace(pos, len, str);
-    }
-
-    void String::replace(std::size_t pos, std::size_t len, const std::string& str) {
-        str_.replace(pos, len, str);
-    }
-
-    void String::removeLast(const ml::String& sep)
+    constexpr std::string_view trim(
+        std::string_view text) noexcept
     {
-        if (this->size() == 0)
-            return;
-        if (String(this->last()) == sep)
-            this->pop();
-        auto tmp = this->split(sep);
-        tmp.pop();
-        str_ = tmp.join(sep);
+        while (!text.empty() && isAsciiSpace(text.front()))
+            text.remove_prefix(1);
+
+        while (!text.empty() && isAsciiSpace(text.back()))
+            text.remove_suffix(1);
+
+        return text;
     }
 
+    constexpr char asciiLower(char character) noexcept
+    {
+        if (character >= 'A' && character <= 'Z')
+        {
+            return static_cast<char>(
+                character - 'A' + 'a');
+        }
+
+        return character;
+    }
+
+    constexpr bool equalsIgnoreCase(
+        std::string_view left,
+        std::string_view right) noexcept
+    {
+        if (left.size() != right.size())
+            return false;
+
+        for (std::size_t i = 0; i < left.size(); ++i)
+        {
+            if (asciiLower(left[i]) != asciiLower(right[i]))
+                return false;
+        }
+
+        return true;
+    }
+
+    bool isEqual(const std::string& s1, const std::string& s2, bool ignoreCase)
+    {
+        if (ignoreCase)
+            return equalsIgnoreCase(s1, s2);
+        else
+            return s1 == s2;
+    }
+
+    std::string trimed(const std::string& s)
+    {
+        std::string_view sv(s);
+        return std::string(trim(sv));
+    }
 }
 
 namespace std

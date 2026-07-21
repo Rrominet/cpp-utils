@@ -6,6 +6,7 @@
 #include <string>
 #include <iostream>
 #include <locale.h>
+#include <string_view>
 #include "vec.h"
 #include "templates.h"
 
@@ -112,133 +113,22 @@ namespace str
     // carful here if the strings in the lists are deleted, the pointers in the retrunred char ** will not be ok anymore. use the 2nd function if you want to use the char** after the death of the vector.
     const char ** fromStringList(const std::vector<std::string>& vec);
     char ** fromStringListCopy(const std::vector<std::string>& vec);
-    bool startsWith(const std::string& s, const std::string& start);
-}
+    bool startsWith(const std::string& s, const std::string& start, bool trimWithSpaces=true);
 
-namespace ml
-{
-    class String {
-        public:
-            // Constructors
-            String();
-            String(const char* str);
-            String(const char c);
-            String(const std::string& str);
-            String(const String& other);
-            String(bool val){str_ = str::fromBool(val);}
-            String(double val){str_ = str::fromDouble(val);}
-            String(int val){str_ = str::fromInt(val);}
-            String(void* ptr){str_ = str::asString(ptr);}
+    constexpr bool isAsciiSpace(char character) noexcept;
 
-            // Destructor
-            virtual ~String(){}
+    constexpr std::string_view trim(
+        std::string_view text) noexcept;
 
-            // Operators
-            String& operator=(const String& other);
-            String& operator=(const char* str);
-            String& operator=(const std::string& str);
-            String& operator+=(const String& other);
-            String& operator+=(const char* str);
-            String& operator+=(const std::string& str);
-            friend String operator+(const String& lhs, const String& rhs);
-            friend String operator+(const String& lhs, const char* rhs);
-            friend String operator+(const char* lhs, const String& rhs);
-            friend String operator+(const String& lhs, const std::string& rhs);
-            friend String operator+(const std::string& lhs, const String& rhs);
+    constexpr char asciiLower(char character) noexcept;
 
-            operator std::string() const{return str_;}
-            operator std::string&() {return str_;}
-            operator const std::string&() const {return str_;}
+    constexpr bool equalsIgnoreCase(
+        std::string_view left,
+        std::string_view right) noexcept;
 
-            char& operator[](size_t pos){return str_[pos];}
-            const char& operator[] (size_t pos) const {return str_[pos];}
+    bool isEqual(const std::string& s1, const std::string& s2, bool ignoreCase=false);
+    std::string trimed(const std::string& s);
 
-            // Methods
-            const char* c_str() const;
-            std::string str() const;
-            std::string& str() {return str_;};
-            std::string& s() {return str_;};
-            std::string s() const {return str_;};
-            bool empty() const;
-            std::size_t size() const;
-            void clear();
-            String substr(std::size_t pos, std::size_t len) const;
-            std::size_t find(const String& str, std::size_t pos = 0) const;
-            std::size_t find(const char* str, std::size_t pos = 0) const;
-            std::size_t find(char c, std::size_t pos = 0) const;
-            void replace(std::size_t pos, std::size_t len, const String& str);
-            void replace(std::size_t pos, std::size_t len, const char* str);
-            void replace(std::size_t pos, std::size_t len, const std::string& str);
-
-            ml::Vec<std::string> split(const String& delimiter, const String &exception = "") const {return ml::Vec(str::split(str_, delimiter, exception));}
-            void remove(const String &toRemove){str_ = str::remove(str_, toRemove);}
-            void replace(const String& search, const String& replace){str_ = str::replace(str_, search, replace);}
-            String replaced(const String& search, const String& replace) const{return str::replace(str_, search, replace);}
-
-            void lower(){str_ = str::lower(str_);} 
-            void upper(){str_ = str::upper(str_);}
-
-            String lowered() {return str::lower(str_);}
-            String uppered() {return str::upper(str_);}
-
-            void clean(const bool &removeMaj=false){str_ = str::clean(str_, removeMaj);}
-            String cleaned(const bool &removeMaj=false) const{return str::clean(str_, removeMaj);};
-            String email() const{return str::emailFromCleaned(str_);}
-
-            char last() const{return str::last(str_);}
-            bool contains(const String& searched) const {return str::contains(str_, searched);}
-
-            String lastLine() const{return str::lastLine(str_);}
-            void pop() {str_.pop_back();}
-
-            int spaceBegining() const{return str::spaceBegining(str_);}
-
-            String quoted()const {return str::quote(str_);}
-            String unquoted()const {return str::unquote(str_);}
-
-            String encoded()const {return str::encode(str_);}
-            String decoded()const {return str::decode(str_);}
-
-            void quote() {str_ = str::quote(str_);}
-            void unquote(){str_ = str::unquote(str_);}
-
-            void encode(){str_ = str::encode(str_);}
-            void decode(){str_ = str::decode(str_);}
-
-            void pad(char paddingChar = '0', int number=4){str_ = str::pad(str_, paddingChar, number);}
-            String padded(char paddingChar = '0', int number=4)const {return str::pad(str_, paddingChar, number);}
-
-            std::vector<std::string> in(char first, char second)const {return str::in(str_, first, second);}
-            // if removeOuterSumbols it will also remove the first and second character given in argument 
-            // ex first : <, second  :> my <String> -> my (and not my <>)
-            void removeIn(char first, char second, bool removeOuterSumbols=false){str_ = str::removeIn(str_, first, second, removeOuterSumbols);}
-
-            //return true if _in is between first and second in s
-            bool isIn(const std::string& _in, char first, char second)const {return str::isIn(str_, _in, first, second);}
-            //
-            //return 0 if not founded in container
-            int has(const String& searched)const {return str::has(str_, searched);}
-            int has(char searched)const {return str::has(str_, String(searched));}
-            int differences(const String& s2)const {return str::differences(str_, s2.str());}
-            bool asBool()const {return str::asBool(str_);}
-            double asDouble()const {return str::asDouble(str_);}
-            int asInt()const {return str::asInt(str_);}
-            bool isANumber()const {return str::isANumber(str_);}
-            void capitalize(bool everyWord=true){str_ = str::capitalize(str_, everyWord);}
-            String capitalized(bool everyWord=true) const {return str::capitalize(str_, everyWord);}
-
-            void removeLast(const ml::String& sep);
-
-        private:
-            std::string str_;
-    };
-
-    bool operator==(const String& lhs, const String& rhs);
-    bool operator!=(const String& lhs, const String& rhs);
-    bool operator<(const String& lhs, const String& rhs);
-    bool operator>(const String& lhs, const String& rhs);
-    bool operator<=(const String& lhs, const String& rhs);
-    bool operator>=(const String& lhs, const String& rhs);
 }
 
 namespace std
