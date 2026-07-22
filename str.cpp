@@ -1,13 +1,13 @@
-#include "str.h"
-#include "debug.h"
+#include "./str.h"
+#include "./debug.h"
 #include <string_view>
 #include <time.h>
 #include <algorithm>
 #include <iomanip>
-#include "vec.h"
 #include <cctype>
 #include <sstream>
-#include "mlTime.h"
+#include "./mlTime.h"
+#include "./tconv.h"
 
 using namespace std; 
 
@@ -470,103 +470,51 @@ int str::differences(const std::string& s1, const std::string& s2)
 
 bool str::asBool(const std::string& v)
 {
-    if (v == "false")
-        return false;
-    else if (v == "true")
-        return true;
-    if (v.empty())
-        return false;
-    float f = stof(v);
-    if (f)
-        return true;
-    return false;
+    return tconv::convert<std::string, bool>(v);
 }
 
 std::string str::fromBool(bool v)
 {
-    if (v)
-        return "1";
-    else 
-        return "0";
+    return tconv::convert<bool, std::string>(v);
 }
 
-    float str::asFloat(const std::string& v)
+float str::asFloat(const std::string& v)
 {
-
-    if (v.empty())
-        return 0.0;
-    try
-    {
-        std::string v_ok = str::replace(v, ",", ".");
-        return stof(v_ok);
-    }
-    catch(...)
-    {
-        return 0;
-    }
+    return tconv::convert<std::string, float>(v);
 }
     std::string str::fromFloat(float v)
 {
-
-    return std::to_string(v);
+    return tconv::convert<float, std::string>(v);
 }
 
 double str::asDouble(const std::string& v)
 {
-    if (v.empty())
-        return 0.0;
-    try
-    {
-        std::string v_ok = str::replace(v, ",", ".");
-        return stod(v_ok);
-    }
-    catch(...)
-    {
-        return 0;
-    }
+    return tconv::convert<std::string, double>(v);
 }
 
 std::string str::fromDouble(double v)
 {
-    return std::to_string(v);
+    return tconv::convert<double, std::string>(v);
 }
 
 int str::asInt(const std::string& v)
 {
-    if (v.empty())
-        return 0;
-    try
-    {
-        return stoi(v);
-    }
-    catch(...)
-    {
-        return 0;
-    }
+    return tconv::convert<std::string, int>(v);
 }
 
 std::string str::fromInt(int v)
 {
-    return std::to_string(v);
+    return tconv::convert<int, std::string>(v);
 }
 
 long str::asLong(const std::string& v)
 {
-    if (v.empty())
-        return 0;
-    try
-    {
-        return stol(v);
-    }
-    catch(...)
-    {
-        return 0;
-    }
+    return tconv::convert<std::string, long>(v);
 }
 
 std::string str::fromLong(long v)
 {
-    return std::to_string(v);
+    return tconv::convert<long, std::string>(v);
 }
 
 bool str::isANumber(const std::string& v)
@@ -666,7 +614,7 @@ bool str::startsWith(const std::string& s, const std::string& start, bool trimWi
 
 namespace str
 {
-    constexpr bool isAsciiSpace(char character) noexcept
+     bool isAsciiSpace(char character)
     {
         return character == ' '  ||
                character == '\t' ||
@@ -676,8 +624,8 @@ namespace str
                character == '\v';
     }
 
-    constexpr std::string_view trim(
-        std::string_view text) noexcept
+     std::string_view trim(
+        std::string_view text)
     {
         while (!text.empty() && isAsciiSpace(text.front()))
             text.remove_prefix(1);
@@ -688,7 +636,7 @@ namespace str
         return text;
     }
 
-    constexpr char asciiLower(char character) noexcept
+     char asciiLower(char character)
     {
         if (character >= 'A' && character <= 'Z')
         {
@@ -699,9 +647,9 @@ namespace str
         return character;
     }
 
-    constexpr bool equalsIgnoreCase(
+     bool equalsIgnoreCase(
         std::string_view left,
-        std::string_view right) noexcept
+        std::string_view right)
     {
         if (left.size() != right.size())
             return false;

@@ -235,6 +235,24 @@ namespace vc
                 src.erase(it);
             }
         }
+
+    template <typename T>
+        void extendWithLastValue(std::vector<T>& src, size_t size)
+        {
+            if (src.size() >= size)
+                return;
+
+            if (src.size() == 0)
+            {
+                src.resize(size);
+                return;
+            }
+
+            auto prevs = src.size();
+            src.resize(size);
+            for (size_t i=prevs; i<size; i++)
+                src[i] = src[prevs - 1];
+        }
 }
 
 namespace ml

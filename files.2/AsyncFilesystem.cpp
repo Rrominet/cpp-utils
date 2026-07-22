@@ -36,7 +36,7 @@ namespace ml
     void AsyncFilesystem::setRoot(const std::string& root)
     {
         _root = root;	
-        if (_root.back() == files::sep())
+        if (_root.back() == files::sep()[0])
             _root.pop_back();
     }
 
@@ -188,10 +188,9 @@ namespace ml
 
     std::string AsyncFilesystem::fullpath(const std::string& path)
     {
-        if (path[0] == files::sep())        
+        if (path[0] == files::sep()[0])        
             return _root + path;
-        else 
-            return _root + files::sep() + path;
+        return _root + files::sep() + path;
     }
 
     void AsyncFilesystem::_pushData(const std::string& path, const std::string& data)

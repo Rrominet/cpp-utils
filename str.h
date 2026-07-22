@@ -7,8 +7,8 @@
 #include <iostream>
 #include <locale.h>
 #include <string_view>
-#include "vec.h"
-#include "templates.h"
+#include "./vec.h"
+#include "./templates.h"
 
 #define _S (std::string)
 
@@ -95,36 +95,23 @@ namespace str
     std::pair<uint32_t, uint32_t> unicodeRangeForLanguage(Language language);
 
     template <typename Nb>
-        Nb asNumber(const std::string& v)
-        {
-            if (!isANumber(v)) return 0;
-            if constexpr (tpl::checkType<Nb, double>())
-                return std::stod(v);
-            else if constexpr (tpl::checkType<Nb, float>())
-                return std::stof(v);
-            else if constexpr (tpl::checkType<Nb, long>())
-                return std::stol(v);
-            else if constexpr (tpl::checkType<Nb, int>())
-                return std::stoi(v);
-            else
-                return 0;
-        }
+        Nb asNumber(const std::string& v);
 
     // carful here if the strings in the lists are deleted, the pointers in the retrunred char ** will not be ok anymore. use the 2nd function if you want to use the char** after the death of the vector.
     const char ** fromStringList(const std::vector<std::string>& vec);
     char ** fromStringListCopy(const std::vector<std::string>& vec);
     bool startsWith(const std::string& s, const std::string& start, bool trimWithSpaces=true);
 
-    constexpr bool isAsciiSpace(char character) noexcept;
+    bool isAsciiSpace(char character);
 
-    constexpr std::string_view trim(
-        std::string_view text) noexcept;
+    std::string_view trim(
+        std::string_view text);
 
-    constexpr char asciiLower(char character) noexcept;
+    char asciiLower(char character);
 
-    constexpr bool equalsIgnoreCase(
+    bool equalsIgnoreCase(
         std::string_view left,
-        std::string_view right) noexcept;
+        std::string_view right);
 
     bool isEqual(const std::string& s1, const std::string& s2, bool ignoreCase=false);
     std::string trimed(const std::string& s);

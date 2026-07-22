@@ -1,0 +1,29 @@
+#pragma once
+#include "../ObjectsManager.h"
+#include "./Entity.h"
+
+namespace ml
+{
+    namespace nodes
+    {
+        class BaseSocket;
+        class Graph;
+        class Link : public Entity
+        {
+            public : 
+                Link(Workflow* workflow, Handle<Graph> graph) : Entity(workflow), _graph(graph){}
+                BaseSocket* socketIn() {return _socketIn.get();};
+                BaseSocket* socketOut() {return _socketOut.get();};
+
+                void connect(Handle<BaseSocket> socketOut, Handle<BaseSocket> socketIn) {_socketOut = socketOut;_socketIn = socketIn; };
+
+                virtual json serialize()override;
+                virtual void deserialize(const json& j) override;
+                
+            protected : 
+                Handle<BaseSocket> _socketOut;
+                Handle<BaseSocket> _socketIn;
+                Handle<Graph> _graph;
+        };
+    }
+}

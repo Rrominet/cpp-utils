@@ -55,7 +55,7 @@ namespace tpl
     // template<typename T, typename = void> // the void need to be there or else the SFINAE will not work | becquse we "compare 2 types"
     // struct has_yourMethod : std::false_type {};
     //
-    // the 2nd template is simply a template thate return a true template is it form does noe produce a compile error (if it does the compiler will use the first one that return a false template)
+    // the 2nd template is simply a template thate return a true template is it form does not produce a compile error (if it does the compiler will use the first one that return a false template)
     // template<typename T>
     // struct has_yourMethod <T, std::void_t<decltype(std::declval<T>().yourMethod(
     //   std::declval<int>(),

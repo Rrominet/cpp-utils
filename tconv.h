@@ -17,7 +17,7 @@ namespace tconv
             std::string* error,
             std::string_view message);
 
-    inline bool parseBool(
+    bool parseBool(
             std::string_view text,
             bool& result,
             std::string* error);
@@ -598,6 +598,32 @@ namespace tconv
         {
             v = asDefault(v);
         }
+
+    //TODO : Add the supported types in a type_index vector or map so it can be extensible.
+    template <typename T>
+        T converted(const std::any& v)
+        {
+            if (v.type() == typeid(T))
+                return std::any_cast<T>(v);
+            else if (v.type() == typeid(std::string))
+                return tconv::convert<std::string, T>(std::any_cast<std::string>(v));
+            else if (v.type() == typeid(bool))
+                return tconv::convert<bool, T>(std::any_cast<bool>(v));
+            else if (v.type() == typeid(short))
+                return tconv::convert<short, T>(std::any_cast<short>(v));
+            else if (v.type() == typeid(int))
+                return tconv::convert<int, T>(std::any_cast<int>(v));
+            else if (v.type() == typeid(long))
+                return tconv::convert<long, T>(std::any_cast<long>(v));
+            else if (v.type() == typeid(long long))
+                return tconv::convert<long long, T>(std::any_cast<long long>(v));
+            else if (v.type() == typeid(float))
+                return tconv::convert<float, T>(std::any_cast<float>(v));
+            else if (v.type() == typeid(double))
+                return tconv::convert<double, T>(std::any_cast<double>(v));
+            else if (v.type() == typeid(long double))
+                return tconv::convert<long double, T>(std::any_cast<long double>(v));
+            else 
+                return T{};
+        }
 }
-
-

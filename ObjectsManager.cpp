@@ -4,6 +4,7 @@ namespace ml
 {
     bool ObjectsManager::_checkSlot(const Slot& slot, unsigned int generation) const
     {
+        lg("ObjectsManager::_checkSlot");
         if (slot.generation != generation)
         {
             lg("Slot generation and the handle generation don't match (handle generation : " << generation << " slot generation : " << slot.generation << ")");
