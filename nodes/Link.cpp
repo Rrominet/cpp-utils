@@ -1,4 +1,3 @@
-#pragma once
 #include "./Link.h"
 #include "./Socket.h"
 #include "./Graph.h"
@@ -49,6 +48,16 @@ namespace ml
                 else
                     lg("Input socket " << sid << " not found in the graph " << graph->id());
             }
+            graph->connect(_socketOut, _socketIn);
+        }
+        void Link::log()
+        {
+            Entity::log();
+            lg("Link " << _id << " :");
+            if (auto* s = _socketOut.get())
+                lg("  from output socket " << s->id() << " (" << s->name() << ")");
+            if (auto* s = _socketIn.get())
+                lg("  to input socket " << s->id() << " (" << s->name() << ")");
         }
     }
 }

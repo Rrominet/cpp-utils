@@ -49,5 +49,17 @@ namespace ml
             if (j.contains("type"))
                 _type = j["type"].get<SocketType>();
         }
+
+        void BaseSocket::log()
+        {
+            Entity::log();
+            lg("Socket " << _name << " (type: " << _type << ") :");
+            if (_link.valid())
+                lg("  connected to link " << _link.get()->id());
+            else
+                lg("  not connected");
+            if (hasError())
+                lg("  error: " << _typeError);
+        }
     }
 }

@@ -1,10 +1,68 @@
 #include "./Graph.h"
 #include "./Workflow.h"
 
+//should be gnerated at compile time
+#include "sub/MathNode.h"
+
+#include "./Graph.hpp"
+
 namespace ml
 {
     namespace nodes
     {
+        template<>
+            Node* Graph::fromId<Node>(const std::string& id)
+            {
+                lg("Graph::fromId<Node>(" << id << ")");
+                for (auto& nh : _nodes)
+                {
+                    if (auto n = nh.get())
+                    {
+                        if (n->id() == id)
+                            return n;
+                    }
+                }
+                return nullptr;
+            }
+
+        template<>
+            BaseSocket* Graph::fromId<BaseSocket>(const std::string& id)
+            {
+                lg("Graph::fromId<BaseSocket>(" << id << ")");
+                for (auto& nh : _nodes)
+                {
+                    if (auto n = nh.get())
+                    {
+                        for (auto& s : n->inputs())
+                        {
+                            if (s->id() == id)
+                                return s;
+                        }
+                        for (auto& s : n->outputs())
+                        {
+                            if (s->id() == id)
+                                return s;
+                        }
+                    }
+                }
+                return nullptr;
+            }
+
+        template<>
+            Link* Graph::fromId<Link>(const std::string& id)
+            {
+                lg("Graph::fromId<Link>(" << id << ")");
+                for (auto& lh : _links)
+                {
+                    if (auto l = lh.get())
+                    {
+                        if (l->id() == id)
+                            return l;
+                    }
+                }
+                return nullptr;
+            }
+
         Handle<Link> Graph::connect(Handle<BaseSocket> socketOut,Handle<BaseSocket> socketIn)
         {
             lg("Graph::connect");
@@ -23,6 +81,45 @@ namespace ml
                     lg("socketOut is null");
 
                 _links.push_back(hd);
+            }
+            return hd;
+        }
+
+        Handle<Link> Graph::createLinkFromData(const json& data)
+        {
+            auto hd = _workflow->manager().create<Link>(_workflow, _workflow->manager().handle<Graph>(this));
+            if (auto* l = hd.get())
+            {
+                l->deserialize(data);
+
+                Handle<BaseSocket> hsout, hsin;
+                if (data.contains("output"))
+                {
+                    auto sid = data["output"].get<std::string>();
+                    auto socket = this->fromId<BaseSocket>(sid);
+                    if (socket)
+                    {
+                        socket->setLink(hd);
+                        hsout = _workflow->manager().handle<BaseSocket>(socket);
+                    }
+                }
+
+                if (data.contains("input"))
+                {
+                    auto sid = data["input"].get<std::string>();
+                    auto socket = this->fromId<BaseSocket>(sid);
+                    if (socket)
+                    {
+                        socket->setLink(hd);
+                        hsin = _workflow->manager().handle<BaseSocket>(socket);
+                    }
+                }
+
+                if (hsout.valid() && hsin.valid())
+                {
+                    l->connect(hsout, hsin);
+                    _links.push_back(hd);
+                }
             }
             return hd;
         }
@@ -120,60 +217,58 @@ namespace ml
         void Graph::deserialize(const json& j)
         {
             Entity::deserialize(j);
+            _nodes.clear();
+            _links.clear();
+
             if (j.contains("name"))
                 _name = j["name"].get<std::string>();
 
-            //TODO
+            for (const auto& nj : j["nodes"])
+            {
+                //TODO should generate an error if type does not exists or is not valid type
+                std::string type = nj.value("type", "Node");
+                        
+                //should be generated at compile time
+                if (type == "Node")
+                {
+                    auto hd = this->createNode<Node>("");
+                    if (auto* n = hd.get())
+                        n->deserialize(nj);
+                }
+
+                else if (type == "MathNode")
+                {
+                    auto hd = this->createNode<MathNode>("");
+                    if (auto* n = hd.get())
+                        n->deserialize(nj);
+                }
+                //
+            }
+
+            lg("Graph " << _name << " node deserialized -- _nodes.size() = " << _nodes.size());
+
+            for (const auto& lj : j["links"])
+                this->createLinkFromData(lj);
+
+            lg("Graph " << _name << " link deserialized -- _links.size() = " << _links.size());
         }
 
-        template<>
-            Node* Graph::fromId<Node>(const std::string& id)
-            {
-                for (auto& nh : _nodes)
-                {
-                    if (auto n = nh.get())
-                    {
-                        if (n->id() == id)
-                            return n;
-                    }
-                }
-                return nullptr;
-            }
 
-        template<>
-            BaseSocket* Graph::fromId<BaseSocket>(const std::string& id)
+        void Graph::log()
+        {
+            Entity::log();            
+            lg("Graph " << _name << " :");
+            for (auto& nh : _nodes)
             {
-                for (auto& nh : _nodes)
-                {
-                    if (auto n = nh.get())
-                    {
-                        for (auto& s : n->inputs())
-                        {
-                            if (s->id() == id)
-                                return s;
-                        }
-                        for (auto& s : n->outputs())
-                        {
-                            if (s->id() == id)
-                                return s;
-                        }
-                    }
-                }
-                return nullptr;
+                if (auto n = nh.get())
+                    n->log();
             }
-
-        template<>
-            Link* Graph::fromId<Link>(const std::string& id)
+            for (auto& lh : _links)
             {
-                for (auto& lh : _links)
-                {
-                    if (auto l = lh.get())
-                    {
-                        if (l->id() == id)
-                            return l;
-                    }
-                }
-                return nullptr;
+                if (auto l = lh.get())
+                    l->log();
             }
+        }
     }
 }
+

@@ -36,20 +36,6 @@ namespace ml
             auto j = Entity::serialize(); 
             j["name"] = _name;
             j["type"] = _type;
-
-            j["inputs"] = json::array();
-            for (auto& sh : _socketsIn)
-            {
-                if (auto s = sh.get())
-                    j["inputs"].push_back(s->serialize());
-            }
-
-            j["outputs"] = json::array();
-            for (auto& sh : _socketsOut)
-            {
-                if (auto s = sh.get())
-                    j["outputs"].push_back(s->serialize());
-            }
             return j;
         }
 
@@ -60,8 +46,15 @@ namespace ml
                 _name = j["name"].get<std::string>();
             if (j.contains("type"))
                 _type = j["type"].get<std::string>();
-
-            //TODO
+        }
+        void Node::log()
+        {
+            Entity::log();
+            lg("Node " << _name << " (type: " << _type << ") :");
+            for (auto& s : this->inputs())
+                s->log();
+            for (auto& s : this->outputs())
+                s->log();
         }
     }
 }

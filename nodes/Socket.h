@@ -70,6 +70,8 @@ namespace ml
                 virtual json serialize()override;
                 virtual void deserialize(const json& j) override;
 
+virtual void log() override;
+
             protected : 
                 // _defaultValue is the default value setted by the user (often gui) for any input
                 std::any _defaultValue;
@@ -121,7 +123,7 @@ namespace ml
                             _set<Tin>(value[i], &_value[i]);
                     }
 
-                //TODO : need to have a way to manage types that are not managed by json by default.
+                //TODO : need to have a way to manage types that are not managed by json by default. (could certainly begenerated at compile time)
                 virtual json serialize()override
                 {
                     json j = ml::nodes::BaseSocket::serialize(); 
@@ -136,6 +138,14 @@ namespace ml
                         _set<T>(j["defaultValue"].get<T>(), &_defaultValue);
                 }
 
+                virtual void log() override
+                {
+                    ml::nodes::BaseSocket::log();
+                    lg("  defaultValue = " << tconv::converted<T>(_defaultValue));
+                    lg("  values (" << _value.size() << ") :");
+                    for (auto& v : _value)
+                        lg("    " << tconv::converted<T>(v));
+                }
 
             protected : 
                 template<typename Tin>

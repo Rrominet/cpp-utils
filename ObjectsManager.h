@@ -290,24 +290,15 @@ namespace ml
                     lg("ObjectsManager::destroy");
                     if (!handle.valid()) 
                         return ml::ret::fail("The handle is non-valid - can't destroy the object assiociated to it.");
-                    if (handle.id >= _slots.size())
-                        return ml::ret::fail("The handle is out of range (" + std::to_string(handle.id) + " against " + std::to_string(_slots.size()) + ")- can't destroy the object assiociated to it.");
-
-                    Slot& slot = _slots.at(handle.id);
-
-                    if (slot.generation != handle.generation)
-                        return ml::ret::fail("The slot generation and the handle generation don't match (handle generation : " + std::to_string(handle.generation) + " slot generation : " + std::to_string(slot.generation) + ") - can't destroy the object assiociated to it.");
-                    if (!slot.object.has_value())
-                        return ml::ret::fail("The slot object has no value - nothing to do");
-
-                    slot.object.reset();
-                    ++slot.generation;
-                    if (slot.generation == 0)
-                        ++slot.generation;
-
-                    _free.push_back(handle.id);
-                    return ml::ret::success();
+                    return this->destroy(handle.id, handle.generation);
                 }
+
+            //if generation is 0, it will be ignored
+            //if checkBounds=true, it will check if the id is out of range of the _slots vector (added for performance purpose when you're sure that the idea is already in)
+            ml::Ret<> destroy(unsigned int id, unsigned int generation=0, bool checkBounds=true);
+
+            //remove all objects of memory
+            ml::Ret<> clear();
     };
 
     template<typename T>

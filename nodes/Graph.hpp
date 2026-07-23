@@ -19,6 +19,7 @@ namespace ml
         template<typename N>
             N* Graph::fromId(const std::string& id)
             {
+                lg("Graph::fromId<" << typeid(N).name() << ">(" << id << ")");
                 if constexpr(has_id<N>::value)
                 {
                     for (const auto& s : _workflow->manager().slots())

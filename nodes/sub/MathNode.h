@@ -9,7 +9,7 @@ namespace ml
         class MathNode : public Node
         {
             public:
-                MathNode(Workflow* workflow, const std::string& name);
+                MathNode(Workflow* workflow, Handle<Graph> graph, const std::string& name);
 
                 void createSockets();
 
@@ -24,6 +24,10 @@ namespace ml
                 //executed by the ObjectManager just after construction
                 //PUT Everything you need to be initialized here NOT in the Constructor
                 void init();
+
+                virtual json serialize()override;
+                virtual void deserialize(const json& j) override;
+virtual void log() override;
 
             protected : 
                 Handle<Socket<double>> _a;

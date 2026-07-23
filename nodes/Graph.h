@@ -13,12 +13,13 @@ namespace ml
         class Graph : public Entity
         {
             public :
-                Graph(Workflow* workflow, const std::string& name) : Entity(workflow), _name(name) {}
+                Graph(Workflow* workflow, const std::string& name="") : Entity(workflow), _name(name) {}
                 
                 template<typename N>
                     Handle<N> createNode(const std::string& name);
 
                 Handle<Link> connect(Handle<BaseSocket> socketOut, Handle<BaseSocket> socketIn);
+                Handle<Link> createLinkFromData(const json& data);
 
                 void execute();
 
@@ -33,6 +34,9 @@ namespace ml
 
                 template<typename N>
                     N* fromId(const std::string& id);
+
+                const std::string& name() const {return _name;}
+                virtual void log() override;
 
             private: 
                 std::string _name;

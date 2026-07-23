@@ -32,6 +32,7 @@ namespace ml
 
                 virtual json serialize()override;
                 virtual void deserialize(const json& j) override;
+virtual void log() override;
 
             protected: 
                 std::string _name;

@@ -7,7 +7,7 @@ namespace ml
 {
     namespace nodes
     {
-        MathNode::MathNode(Workflow* workflow, const std::string& name) : Node(workflow, name)
+        MathNode::MathNode(Workflow* workflow, Handle<Graph> graph, const std::string& name) : Node(workflow, graph, name)
         {
             lg("MathNode::MathNode(" << name << ")");
             _init.push_back([](Node* self) {static_cast<MathNode*>(self)->init();});
@@ -61,12 +61,47 @@ namespace ml
                 this->exec_one(a[i],b[i],c[i]);
         }
 
+        json MathNode::serialize()
+        {
+            lg("MathNode::serialize");
+            json j = Node::serialize();
+            if (auto sa = _a.get())
+                j["in_a"] = sa->serialize();
+            if (auto sb = _b.get())
+                j["in_b"] = sb->serialize();
+            if (auto sc = _c.get())
+                j["out_c"] = sc->serialize();
+
+            return j;
+        }
+
+        void MathNode::deserialize(const json& j)
+        {
+            lg("MathNode::deserialize");
+            Node::deserialize(j);
+            if (j.contains("in_a"))
+                _a.get()->deserialize(j["in_a"]);
+            if (j.contains("in_b"))
+                _b.get()->deserialize(j["in_b"]);
+            if (j.contains("out_c"))
+                _c.get()->deserialize(j["out_c"]);
+        }
+
         void MathNode::exec_one(double a,double b,double& c)
         {
             lg("MathNode::exec_one() -- " + _name) ;
             lg("a = " << a << " b = " << b);
             c = a + b;        
             lg("c = " << c);
+        }
+
+        void MathNode::log()
+        {
+            Node::log();
+            lg("MathNode " << _name << " (c = a + b)");
+            auto val = _a.get()->value<double>();
+            if (val.size() > 0)
+                lg("Output (C) value = " << val[0]);
         }
     }
 }

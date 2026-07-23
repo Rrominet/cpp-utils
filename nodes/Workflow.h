@@ -23,6 +23,13 @@ namespace ml
                 json serialize();
                 void deserialize(const json& j);
 
+                ml::Ret<> load(const std::string& path);
+
+                Graph* graph(unsigned int idx);
+                Graph* graph(const std::string& name);
+
+                void log();
+
             private: 
                 ObjectsManager _manager;
                 ml::Vec<Handle<Graph>> _graphs;
