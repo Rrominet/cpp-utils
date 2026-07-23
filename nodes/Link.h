@@ -15,12 +15,12 @@ namespace ml
                 BaseSocket* socketIn() {return _socketIn.get();};
                 BaseSocket* socketOut() {return _socketOut.get();};
 
-                void connect(Handle<BaseSocket> socketOut, Handle<BaseSocket> socketIn) {_socketOut = socketOut;_socketIn = socketIn; };
+                void setSocketOut(const Handle<BaseSocket>& socket){ _socketOut = socket;}
+                void setSocketIn(const Handle<BaseSocket>& socket){ _socketIn = socket;}
 
                 virtual json serialize()override;
-                virtual void deserialize(const json& j) override;
-virtual void log() override;
-                
+                virtual void log() override;
+
             protected : 
                 Handle<BaseSocket> _socketOut;
                 Handle<BaseSocket> _socketIn;

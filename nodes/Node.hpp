@@ -16,7 +16,7 @@ namespace ml
                     lg("selfh is not valid, returning a null handle<Socket>");
                     return Handle<Socket<T>>();
                 }
-                auto hd = _workflow->manager().create<Socket<T>>(_workflow, selfh, type, name);
+                auto hd = _workflow->manager().create<Socket<T>, BaseSocket>(_workflow, selfh, type, name);
                 if (auto* s = hd.get())
                 {
                     s->setDefaultValue(defaultValue); 

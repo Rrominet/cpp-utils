@@ -17,39 +17,6 @@ namespace ml
             return j;
         }
 
-        void Link::deserialize(const json& j)
-        {
-            Entity::deserialize(j);
-
-            lg("Link::deserialize()");
-            auto* graph = _graph.get();
-            if (!graph)
-            {
-                lg("Graph is nullptr, should not happen.");
-                return;
-            }
-
-            if (j.contains("output"))
-            {
-                auto sid = j["output"].get<std::string>();
-                auto socket = graph->fromId<BaseSocket>(sid);
-                if (socket)
-                    _socketOut = _workflow->manager().handle<BaseSocket>(socket);
-                else
-                    lg("Output socket " << sid << " not found in the graph " << graph->id());
-            }
-
-            if (j.contains("input"))
-            {
-                auto sid = j["input"].get<std::string>();
-                auto socket = graph->fromId<BaseSocket>(sid);
-                if (socket)
-                    _socketIn = _workflow->manager().handle<BaseSocket>(socket);
-                else
-                    lg("Input socket " << sid << " not found in the graph " << graph->id());
-            }
-            graph->connect(_socketOut, _socketIn);
-        }
         void Link::log()
         {
             Entity::log();
