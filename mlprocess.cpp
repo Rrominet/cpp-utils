@@ -693,13 +693,24 @@ namespace args
 
 ProcessOut process::exec2(const char* cmd, const char* workingdir)
 {
+    return process::exec2(std::string(cmd), std::string(workingdir));
+}
+
+ProcessOut process::exec2(const std::string& cmd, const std::string& workingdir)
+{
+    lg("Executing: " + cmd);
     ProcessOut result;
     bp::ipstream out_s;
     bp::ipstream err_s;
 
-    std::string wd = workingdir ? std::string(workingdir) : os::home();
+    std::string wd = workingdir;
+    if (wd.empty())
+        wd = os::home();
 
-    bp::child c(std::string(cmd), bp::start_dir(wd), bp::std_out > out_s, bp::std_err > err_s);
+    bp::child c("/bin/sh",
+            "-c",
+            cmd, 
+            bp::start_dir(wd), bp::std_out > out_s, bp::std_err > err_s);
 
     // Read stdout and stderr concurrently to avoid pipe-buffer deadlock
     std::string out_buf, err_buf;
@@ -722,17 +733,78 @@ ProcessOut process::exec2(const char* cmd, const char* workingdir)
     result.stdout = out_buf;
     result.stderr = err_buf;
     result.exitCode = c.exit_code();
-    return result;
-}
 
-ProcessOut process::exec2(const std::string& cmd, const std::string& workingdir)
-{
-    return process::exec2(cmd.c_str(), workingdir.empty() ? nullptr : workingdir.c_str());
+    lg("stdout " << result.stdout);
+    lg("stderr " << result.stderr);
+    lg("exit " << result.exitCode);
+    return result;
 }
 
 ProcessOut process::exec2(const std::vector<std::string>& cmd, const std::string& workingdir)
 {
-    return process::exec2(process::to_string(cmd), workingdir);
+    lg("Executing: " + process::to_string(cmd));
+    ProcessOut result;
+    bp::ipstream out_s;
+    bp::ipstream err_s;
+    std::error_code launch_error;
+
+    std::string wd = workingdir;
+    if (wd.empty())
+        wd = os::home();
+
+    if (cmd.empty())
+    {
+        lg("cmd is empty.");
+        result.exitCode = -1;
+        return result;
+    }
+
+    std::string exe = cmd[0];
+    std::vector<std::string> args;
+    if (cmd.size() > 1)
+    {
+        for (int i = 1; i < cmd.size(); i++)
+            args.push_back(cmd[i]);
+    }
+
+    bp::child c(bp::exe = exe, bp::args = args, 
+            bp::start_dir(wd), bp::std_out > out_s, bp::std_err > err_s, 
+            bp::error = launch_error);
+
+    if (launch_error)
+    {
+        lg("launch error: " << launch_error.message());
+        result.stderr = launch_error.message();
+        result.exitCode = -1;
+        return result;
+    }
+
+    // Read stdout and stderr concurrently to avoid pipe-buffer deadlock
+    std::string out_buf, err_buf;
+    std::thread err_reader([&]{
+        std::string line;
+        while (err_s && std::getline(err_s, line))
+            err_buf += line + "\n";
+    });
+
+    std::string line;
+    while (out_s && std::getline(out_s, line))
+        out_buf += line + "\n";
+
+    lg("joining error reader...");
+    err_reader.join();
+
+    lg("waiting for the process to finish...");
+    c.wait();
+    lg("process done.");
+    result.stdout = out_buf;
+    result.stderr = err_buf;
+    result.exitCode = c.exit_code();
+
+    lg("stdout " << result.stdout);
+    lg("stderr " << result.stderr);
+    lg("exit " << result.exitCode);
+    return result;
 }
 
 

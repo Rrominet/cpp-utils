@@ -38,7 +38,48 @@ When the user sends code, go straight to the list. Nothing else.)";
 
     std::string DebuggerAgent::processOutput(const std::string& inData, const std::string& outData)
     {
-        _issues = str::split(outData, "\n\n---\n\n");
+        auto issues_s = str::split(outData, "\n\n---\n\n");
+        _issues.clear();
+        for (const auto& issue_s : issues_s)
+        {
+            auto issue_r = DebuggerAgent::fromString(issue_s);
+            if (issue_r.success)
+                _issues.push_back(issue_r.value);
+        }
+
         return outData;
+    }
+
+    ml::Ret<DebuggerAgent::Issue> DebuggerAgent::fromString(const std::string& s)
+    {
+
+        const auto header_end = s.find('\n');
+        if (header_end == std::string::npos)
+            return ml::ret::fail<Issue>("Invalid issue, no \n in header");
+
+        const auto header = s.substr(0, header_end);
+        if (header.size() < 3 || header[0] != '[')
+            return ml::ret::fail<Issue>("Invalid issue, no [in header");
+
+        const auto type_end = header.find(']');
+        if (type_end == std::string::npos)
+            return ml::ret::fail<Issue>("Invalid issue, no ] in header");
+
+        const auto type = header.substr(1, type_end - 1);
+        Issue i;
+
+        if (type == "CRITICAL")
+            i.type = "critical";
+        else if (type == "HIGH")
+            i.type = "high";
+        else if (type == "MEDIUM")
+            i.type = "medium";
+        else if (type == "LOW")
+            i.type = "low";
+        else 
+            i.type = "low";
+
+        i.content = s.substr(header_end + 1);
+        return ml::ret::ok<Issue>(i);
     }
 }

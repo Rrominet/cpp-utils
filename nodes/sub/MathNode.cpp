@@ -66,11 +66,11 @@ namespace ml
             lg("MathNode::serialize");
             json j = Node::serialize();
             if (auto sa = _a.get())
-                j["in_a"] = sa->serialize();
+                j["inputs"].push_back(sa->serialize());
             if (auto sb = _b.get())
-                j["in_b"] = sb->serialize();
+                j["inputs"].push_back(sb->serialize());
             if (auto sc = _c.get())
-                j["out_c"] = sc->serialize();
+                j["outputs"].push_back(sc->serialize());
 
             return j;
         }
@@ -79,12 +79,15 @@ namespace ml
         {
             lg("MathNode::deserialize");
             Node::deserialize(j);
-            if (j.contains("in_a"))
-                _a.get()->deserialize(j["in_a"]);
-            if (j.contains("in_b"))
-                _b.get()->deserialize(j["in_b"]);
-            if (j.contains("out_c"))
-                _c.get()->deserialize(j["out_c"]);
+            if (j.contains("inputs"))
+            {
+                _a.get()->deserialize(j["inputs"][0]);
+                _b.get()->deserialize(j["inputs"][1]);
+            }
+            if (j.contains("outputs"))
+            {
+                _c.get()->deserialize(j["outputs"][0]);
+            }
         }
 
         void MathNode::exec_one(double a,double b,double& c)

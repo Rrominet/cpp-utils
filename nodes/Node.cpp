@@ -36,6 +36,8 @@ namespace ml
             auto j = Entity::serialize(); 
             j["name"] = _name;
             j["type"] = _type;
+            j["inputs"] = json::array();
+            j["outputs"] = json::array();
             return j;
         }
 

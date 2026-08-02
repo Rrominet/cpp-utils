@@ -77,6 +77,7 @@ namespace ml
         pdata["messages"] = json::array();
         pdata["messages"].push_back({{"role", "user"}, {"content", _inData}});
         pdata["model"] = _config.model();
+        pdata["model-class"] = _config.modelVendor();
         pdata["api-key"] = _config.api_keys();
         pdata["max-tokens"] = _config.max_tokens();
 

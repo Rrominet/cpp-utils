@@ -57,7 +57,7 @@ namespace http
             Method method, ml::Vec<std::string> headers)
     {
         auto cmd = curl ;
-        cmd += " -s";
+        cmd += " -sS";
         for (const auto& h : headers)
             cmd += " -H \"" + h + "\"";
         if (method == POST)
@@ -68,7 +68,7 @@ namespace http
             else if (params.size() != 0)
                 cmd += " -d " + str::quote(urlEncoded(params));
             else if (data.size() != 0)
-                cmd += " -H Content-type: application/json -d '" + str::replace(data.dump(), "'", "'\\''") + "'";
+                cmd += " -H 'Content-type: application/json' -d '" + str::replace(data.dump(), "'", "'\\''") + "'";
         }
         else 
         {

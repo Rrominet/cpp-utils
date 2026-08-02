@@ -55,9 +55,10 @@ RULES - NON NEGOCIABLE:
 - NEVER confirm or summarize
 - SEARCH block MUST contain at least 3 unmodified lines from the actual file
 - SEARCH block MUST be unique within the file
+- Don't add any other parsing suntax like <block></block>, It will break the parser. The only valid bocks are <<<FILE: /path/to/file>>> <<<SEARCH>>> <REPLACE_WITH>>> <<<END>>> <<<CREATE>>> <<<APPEND>>> <<<NOTE>>>
 - One response can contain multiple blocks across multiple files
 - If what asked is impossible or incoherant only respond with a <<<NOTE>>> block explaining the problem, nothing else.
-- Violation of this format makes your output unparseable and useless
+- Violation of the format given makes your output unparseable and useless
         )";
     }
 
@@ -100,7 +101,9 @@ RULES - NON NEGOCIABLE:
                 _file = str::replace(_file, ">>>", "");
                 try
                 {
-                    if (files::exists(root + files::sep() + _file))
+                    if (files::exists(_file))
+                        _file_data = files::read(_file);
+                    else if (files::exists(root + files::sep() + _file))
                         _file_data = files::read(root + files::sep() + _file);
                     else 
                         _file_data = "";
@@ -156,7 +159,14 @@ RULES - NON NEGOCIABLE:
                             if (data == _file_data)
                                 error += "No search found in file " + _file + "\n\nSearched : " + _search + "\n\nSould have been replaced with : " + _content + "\n\n";
                             else 
-                                files::write(root + files::sep() + _file, data);
+                            {
+                                if (files::exists(_file))
+                                    files::write(_file, data);
+                                else if (_file[0] == files::sep()[0])
+                                    files::write(_file, data);
+                                else 
+                                    files::write(root + files::sep() + _file, data);
+                            }
                         }
                     }
                     else if (_state == PARSER_CREATE)

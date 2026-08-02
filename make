@@ -41,6 +41,8 @@ srcs = [
         "../sound",
         "../md4c",
         "../ai",
+        "../nodes",
+        "../nodes/sub",
         libs + "/sha3/sha3.c",
         ]
 

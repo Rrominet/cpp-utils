@@ -20,6 +20,9 @@ namespace ml
             std::string _api_keys; //bp cgs
             int _max_tokens = 0; //bp cgs
             std::string _model; //bp cgs
+
+            //can be claude, gpt, grok, gemini
+            std::string _modelVendor; //bp cgs
             std::string _logFile; //bp cgs
 
         public : 

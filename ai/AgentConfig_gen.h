@@ -12,6 +12,10 @@ std::string model(){return _model;}
 const std::string& model() const {return _model;}
 void setModel(const std::string& model){_model = model;}
 
+std::string modelVendor(){return _modelVendor;}
+const std::string& modelVendor() const {return _modelVendor;}
+void setModelVendor(const std::string& modelVendor){_modelVendor = modelVendor;}
+
 std::string logFile(){return _logFile;}
 const std::string& logFile() const {return _logFile;}
 void setLogFile(const std::string& logFile){_logFile = logFile;}
