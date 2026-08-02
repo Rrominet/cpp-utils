@@ -38,6 +38,8 @@ namespace ml
             j["type"] = _type;
             j["inputs"] = json::array();
             j["outputs"] = json::array();
+            for (auto& js : _guiData.items())
+                j[js.key()] = js.value();
             return j;
         }
 
@@ -48,6 +50,11 @@ namespace ml
                 _name = j["name"].get<std::string>();
             if (j.contains("type"))
                 _type = j["type"].get<std::string>();
+
+            if (j.contains("width"))
+                _guiData["width"] = j["width"];
+            if (j.contains("pos"))
+                _guiData["pos"] = j["pos"];
         }
         void Node::log()
         {

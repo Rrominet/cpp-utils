@@ -104,6 +104,14 @@ namespace ml
             lg("MathNode " << _name << " (c = a + b)");
             auto val = _a.get()->value<double>();
             if (val.size() > 0)
+                lg("Output (A) value = " << val[0]);
+
+            val = _b.get()->value<double>();
+            if (val.size() > 0)
+                lg("Output (B) value = " << val[0]);
+
+            val = _c.get()->value<double>();
+            if (val.size() > 0)
                 lg("Output (C) value = " << val[0]);
         }
     }

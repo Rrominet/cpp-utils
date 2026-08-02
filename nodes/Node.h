@@ -37,6 +37,7 @@ virtual void log() override;
             protected: 
                 std::string _name;
                 std::string _type = "Node";
+                json _guiData;
                 Handle<Graph> _graph;
 
                 ml::Vec<Handle<BaseSocket>> _socketsIn;

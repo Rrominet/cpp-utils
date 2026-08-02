@@ -85,6 +85,7 @@ virtual void log() override;
                 Handle<Link> _link;
                 Handle<Node> _node;
                 SocketType _type = NONE;
+                json _guiData;
         };
 
 
@@ -134,7 +135,7 @@ virtual void log() override;
                 virtual void deserialize(const json& j) override 
                 {
                     ml::nodes::BaseSocket::deserialize(j);
-                    if (j.contains("defaultValue"))
+                    if (j.contains("defaultValue") && !j["defaultValue"].is_null())
                         _set<T>(j["defaultValue"].get<T>(), &_defaultValue);
                 }
 

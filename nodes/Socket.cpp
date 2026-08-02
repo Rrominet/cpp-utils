@@ -38,6 +38,9 @@ namespace ml
             json j = Entity::serialize();
             j["name"] = _name;
             j["type"] = _type;
+            for (auto& js : _guiData.items())
+                j[js.key()] = js.value();
+
             return j;
         }
 
@@ -48,6 +51,11 @@ namespace ml
                 _name = j["name"].get<std::string>();
             if (j.contains("type"))
                 _type = j["type"].get<SocketType>();
+
+            if (j.contains("class"))
+                _guiData["class"] = j["class"];
+            if (j.contains("vartype"))
+                _guiData["vartype"] = j["vartype"];
         }
 
         void BaseSocket::log()
