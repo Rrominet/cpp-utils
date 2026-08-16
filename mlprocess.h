@@ -12,7 +12,7 @@ namespace bp = boost::process;
 
 struct ProcessRuntimeData
 {
-    bool running;
+    bool running = false;
     std::unique_ptr<bp::child> process;
     std::unique_ptr<std::thread> runthread;
     std::unique_ptr<std::thread> outthread;

@@ -531,4 +531,17 @@ namespace ipc
 
         std::cout << msg << std::endl;
     }
+
+    Response res(const json& response)
+    {
+        Response r;
+        r.success = response.value("success", false);
+
+        if (response.contains("message"))
+            r.message = response["message"];
+        else if (response.contains("error"))
+            r.message = response["error"];
+        r.data = response.value("data", json());
+        return r;
+    }
 }

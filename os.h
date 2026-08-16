@@ -12,6 +12,7 @@ namespace os
     std::string icon_filepath(const std::string& name);
 
     std::string home();
+    std::string config();
     std::string clipboard();
     void setClipboard(std::string text);
 
@@ -19,6 +20,7 @@ namespace os
     namespace lin
     {
         std::string home();
+        std::string config();
     }
 #elif _WIN32
     namespace win

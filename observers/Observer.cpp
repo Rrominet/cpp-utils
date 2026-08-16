@@ -8,6 +8,7 @@ namespace ml
         if (_observed)
             _observed->removeObserver(this);
     }
+
     void Observer::update(const std::string& type, const std::any& data)
     {
         lg("Observer::update " + type);

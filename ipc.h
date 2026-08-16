@@ -129,4 +129,12 @@ namespace ipc
     //show function infos (like mendatory keys, optional keys, etc.)
     void log(const std::string& funcid);
     void logAll();
+
+    struct Response
+    {
+        bool success;
+        std::string message;
+        json data;
+    };
+    Response res(const json& response);
 }

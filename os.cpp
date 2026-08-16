@@ -53,10 +53,24 @@ std::string os::home()
 #endif
 }
 
+std::string os::config()
+{
+#ifdef __linux__
+    return os::lin::config();
+#elif _WIN32
+    throw std::runtime_error("Config not implemented on this platform : " + os::type());
+#endif
+}
+
 #ifdef __linux__
 std::string os::lin::home()
 {
     return os::env("HOME");
+}
+
+std::string os::lin::config()
+{
+    return os::lin::home() + "/.config";
 }
 #elif _WIN32 
 std::string os::win::home()
