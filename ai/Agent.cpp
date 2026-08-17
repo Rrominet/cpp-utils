@@ -43,7 +43,7 @@ namespace ml
         _writeLog(data);
     }
 
-    Ret<> Agent::exec(Process* llm)
+    Ret<> Agent::exec(Process* llm, bool onlyLog)
     {
         lg("Agent : " + _id + " is exec(" << llm << ")");
         if (!llm)
@@ -80,9 +80,20 @@ namespace ml
         pdata["model-class"] = _config.modelVendor();
         pdata["api-key"] = _config.api_keys();
         pdata["max-tokens"] = _config.max_tokens();
+        pdata["tools"] = json::array();
+
+        if (_useWebSearch)
+            pdata["tools"].push_back({{"type", "web_search"}});
 
         lg("Data sent to the llm wrapper : ");
         lg(pdata.dump(4));
+
+        if (onlyLog)
+        {
+            _rawllm = "This is some test data, the LLM have not really been called.";
+            _outData = _rawllm;
+            return ml::ret::ok();
+        }
 
         auto res = ipc::call_sync(llm, "send", pdata);
         lg("LLM wrapper called.");

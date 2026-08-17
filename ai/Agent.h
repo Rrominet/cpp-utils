@@ -27,7 +27,8 @@ namespace ml
             //this is full sync, it returns when the llm is done
             //at the end of this, all the _before and _after function hasbeen called and the _outData should be populated.
             //the llm process is typically the /opt/ia-wrap/ia-wrap process that works with ipc and that simply calls the llm
-            Ret<> exec(Process* llm);
+            //if onlyLog is true, the llm is not called, you just see the command called for debugging purpose.
+            Ret<> exec(Process* llm, bool onlyLog=false);
 
             json serialize() const;
             void deserialize(const json& config);
@@ -72,6 +73,8 @@ namespace ml
             void _writeWhatItSent();
             void _writeWhatItReceived(const std::string& received);
             void _writeLog(const std::string& msg);
+
+            bool _useWebSearch = false; //bp cgs
 
         public : 
 #include "./Agent_gen.h"

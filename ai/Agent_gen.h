@@ -38,3 +38,7 @@ std::string rawllm(){return _rawllm;}
 const std::string& rawllm() const {return _rawllm;}
 
 
+bool useWebSearch(){return _useWebSearch;}
+const bool useWebSearch() const {return _useWebSearch;}
+void setUseWebSearch(bool useWebSearch){_useWebSearch = useWebSearch;}
+
