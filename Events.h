@@ -53,6 +53,7 @@ namespace ml
             // this will block the emission of events until allow() is called
             void block(){_allow = false;}
             void allow(){_allow = true;}
+            bool allowed() const{return _allow;}
 
             // will block until a event is emitted. (typically from another thread, this won't work if you have only one thread in your entire program)
             // it does not execute any code from the listener, it just wait.

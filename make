@@ -36,7 +36,6 @@ srcs = [
         "..",
         "../files.2",
         "../network",
-        "../observers",
         "../commands",
         "../sound",
         "../md4c",
