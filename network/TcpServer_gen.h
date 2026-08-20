@@ -16,3 +16,11 @@ long bufSize(){return _bufSize;}
 const long bufSize() const {return _bufSize;}
 void setBufSize(long bufSize){_bufSize = bufSize;}
 
+size_t& readSocketTimeout(){return _readSocketTimeout;}
+const size_t& readSocketTimeout() const {return _readSocketTimeout;}
+void setReadSocketTimeout(const size_t& readSocketTimeout){_readSocketTimeout = readSocketTimeout;}
+
+size_t& writeSocketTimeout(){return _writeSocketTimeout;}
+const size_t& writeSocketTimeout() const {return _writeSocketTimeout;}
+void setWriteSocketTimeout(const size_t& writeSocketTimeout){_writeSocketTimeout = writeSocketTimeout;}
+

@@ -153,6 +153,7 @@ namespace files
             unsigned int pgrInterval=16);
 
     void move(const std::string& from, const std::string& to);
+    void rename(const std::string& path, const std::string& newName);
     void move(const std::vector<std::string>& files, const std::string& inDir);
 
     std::string cleaned(std::string path);

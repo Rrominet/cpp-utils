@@ -44,7 +44,10 @@ HttpServer::HttpServer(int port,TcpServer::Mode mode,bool async) : TcpServer(por
         }
         catch(const std::exception& e)
         {
-            return "{\"success\": false, \"message\": \"" + std::string(e.what()) + "\"}";
+            json res;
+            res["success"] = false;
+            res["message"] = e.what();
+            return res.dump();
         }
         return "{\"success\": false, \"message\": \"This should be impossible.\"}";
     };
@@ -59,10 +62,19 @@ HttpServer::~HttpServer(){}
 
 void HttpServer::handleSocket(std::shared_ptr<tcp::socket> s)
 {
-    lg("handling the socket ...");
+    lg("Settings the timeouts");
+    TcpServer::setSocketTimeouts(*s, _readHttpHeadersTimeout, _writeSocketTimeout);
     std::string headers = this->readSocket(s, _bufSize, "\r\n\r\n");
     std::unordered_map<std::string, std::string> httpdata;
-    httpdata = network::httpHeaders(headers);
+    try
+    {
+        httpdata = network::httpHeaders(headers);
+    }
+    catch(const std::exception& e)
+    {
+        _execOnError("Error in reading http headers request : " + std::string(e.what()));
+        return;
+    }
 
     if (httpdata.find("Content-Length") != httpdata.end())
     {
@@ -73,6 +85,10 @@ void HttpServer::handleSocket(std::shared_ptr<tcp::socket> s)
             long long lengthToRead = (long long)(length + realHeaderSize) - (long long)headers.size();
             if (lengthToRead > 0)
             {
+                TcpServer::setSocketTimeouts(*s, _readSocketTimeout, _writeSocketTimeout);
+
+                if (lengthToRead > _maxBodySize)
+                    lengthToRead = _maxBodySize;
                 auto rest = this->readSocket(s, (size_t)lengthToRead);
                 httpdata["content"] += rest;
             }
@@ -305,7 +321,10 @@ void HttpServer::createJsonCommand(const std::string& path,
         catch(const std::exception& e)
         {
             lg(e.what());
-            return "{\"success\": false, \"message\": \"" + (std::string)e.what() + "\"}";
+            json res;
+            res["success"] = false;
+            res["message"] = e.what();
+            return res.dump();
         }
     };
 
@@ -323,7 +342,10 @@ void HttpServer::addFuncByPath(std::string path, const std::function<std::string
         }
         catch(const std::exception& e)
         {
-            return "{\"success\": false, \"message\": \"" + (std::string)e.what() + "\"}";
+            json res;
+            res["success"] = false;
+            res["message"] = e.what();
+            return res.dump();
         }
     };
 }
@@ -339,7 +361,10 @@ void HttpServer::addFuncByPath(std::string path, const std::function<std::string
         }
         catch(const std::exception& e)
         {
-            return "{\"success\": false, \"message\": \"" + (std::string)e.what() + "\"}";
+            json res;
+            res["success"] = false;
+            res["message"] = e.what();
+            return res.dump();
         }
     };
 }
@@ -357,7 +382,10 @@ void HttpServer::addJsonFuncByPath(std::string path, const std::function<std::st
         }
         catch(const std::exception& e)
         {
-            return "{\"success\": false, \"message\": \"" + (std::string)e.what() + "\"}";
+            json res;
+            res["success"] = false;
+            res["message"] = e.what();
+            return res.dump();
         }
     };
 }

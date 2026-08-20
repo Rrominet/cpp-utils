@@ -39,8 +39,37 @@ void TcpServer::run()
     }
 }
 
+void TcpServer::setSocketTimeouts(tcp::socket& socket, int read_seconds, int write_seconds)
+{
+	timeval read_timeout;
+    read_timeout.tv_sec = read_seconds;
+    read_timeout.tv_usec = 0;
+
+    ::setsockopt(
+        socket.native_handle(),
+        SOL_SOCKET,
+        SO_RCVTIMEO,
+        &read_timeout,
+        sizeof(read_timeout)
+    );
+
+	timeval write_timeout;
+    write_timeout.tv_sec = write_seconds;
+    write_timeout.tv_usec = 0;
+
+    ::setsockopt(
+        socket.native_handle(),
+        SOL_SOCKET,
+        SO_SNDTIMEO,
+        &write_timeout,
+        sizeof(write_timeout)
+    );
+}
+
 void TcpServer::handleSocket(std::shared_ptr<tcp::socket> s)
 {
+    lg("Settings the timeouts");
+    TcpServer::setSocketTimeouts(*s, _readSocketTimeout, _writeSocketTimeout);
     std::string request;
     boost::system::error_code error;
     while(!error)

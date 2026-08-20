@@ -893,6 +893,11 @@ size_t write(const std::string& path, void* content, size_t size, int permission
         fs::rename(from, to);
     }
 
+    void rename(const std::string& path, const std::string& newName)
+    {
+        files::move(path, files::parent(path) + files::sep() + newName);
+    }
+
     void move(const std::vector<std::string>& files, const std::string& inDir)
     {
         for (const auto& file : files)

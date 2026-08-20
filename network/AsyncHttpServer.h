@@ -6,6 +6,6 @@
 class AsyncHttpServer : public HttpServer
 {
     public:
-        AsyncHttpServer(int port=8080, Mode mode=IP4) : HttpServer(port, mode, true){}
+        AsyncHttpServer(int port=8080, Mode mode=IP4) : HttpServer(port, mode, true){ _pool.setMax(128);}
         virtual ~AsyncHttpServer(){}
 };

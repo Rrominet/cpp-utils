@@ -57,7 +57,8 @@ namespace ml
         {
             lg("Executing the _beforeLlmCall function : " << i);
             auto res = _beforeLlmCall[i](this, _inData);
-            _beforeRes += res + "\n";
+            if (!res.empty())
+                _beforeRes += res + "\n";
             lg("_beforeLlmCall[" << i << "] res : " << res);
         }
 
@@ -84,6 +85,14 @@ namespace ml
 
         if (_useWebSearch)
             pdata["tools"].push_back({{"type", "web_search"}});
+
+        if (!_reasoning.empty())
+        {
+            json reasoning;
+            reasoning["effort"] = _reasoning;
+            reasoning["mode"] = _reasoningMode;
+            pdata["reasoning"] = reasoning;
+        }
 
         lg("Data sent to the llm wrapper : ");
         lg(pdata.dump(4));

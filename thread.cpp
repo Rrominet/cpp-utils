@@ -139,7 +139,18 @@ void th::ThreadPool::threadRun()
             _sync.data().jobs.pop();
         }
         _running ++;
-        job();
+        try
+        {
+            job();
+        }
+        catch (const std::exception& e)
+        {
+            lg("ThreadPool job exception: " << e.what());
+        }
+        catch (...)
+        {
+            lg("ThreadPool job unknown exception");
+        }
         _running --;
     }
 }
@@ -172,7 +183,8 @@ void th::ThreadPool::run(const std::function<void ()> &f, const std::function<vo
         f();
         {
             std::lock_guard lk(_cb_mtx);
-            _callbacks.push_back(callback);
+            if (callback)
+                _callbacks.push_back(callback);
         }
 
         {
@@ -234,7 +246,10 @@ void th::ThreadPool::processCallbacks()
         _callbacks = std::vector<std::function<void()>>();
     }
     for (auto& callback : cb)
-        callback();
+    {
+        if (callback)
+            callback();
+    }
 }
 
 int th::maxRunning()

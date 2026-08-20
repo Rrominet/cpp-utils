@@ -25,6 +25,7 @@ class TcpServer
         void addOnError(std::function<void (const std::string&)> f);
 
         virtual void handleSocket(std::shared_ptr<tcp::socket> s);
+        static void setSocketTimeouts(tcp::socket& socket, int read_seconds, int write_seconds);
         void write(std::shared_ptr<tcp::socket> s, const std::string& res);
         void write(std::shared_ptr<tcp::socket> s, const std::string& res, boost::system::error_code& error);
 
@@ -45,6 +46,13 @@ class TcpServer
 
         void _execOnError(const std::string& error);
 
+        // in ms
+        //30 min
+        size_t _readSocketTimeout = 1000*30; //bp cgs
+
+        //1h
+        size_t _writeSocketTimeout = 1000*60; //bp cgs
+        
     public : 
 #include "./TcpServer_gen.h"
 };

@@ -134,25 +134,25 @@ namespace th
     //work only with Safe (not Mutex directly (to FIX))
     class Cond
     {
-        std::condition_variable _cv;
-        public:
+        std::condition_variable_any _cv;
+
+    public:
+
         template<typename MutexW, typename Predicate>
-            void wait(std::unique_lock<MutexW>& lock, Predicate pred) {
-                auto& wrapper = *lock.mutex();
+        void wait(std::unique_lock<MutexW>& lock, Predicate pred)
+        {
+            _cv.wait(lock, pred);
+        }
 
-                while (!pred()) {
-                    lock.unlock(); // Calls your wrapper's unlock (debug code runs)
+        void notify_one()
+        {
+            _cv.notify_one();
+        }
 
-                    std::unique_lock<std::mutex> internal_lock(wrapper.mtx().mtx());
-                    _cv.wait(internal_lock);
-                    internal_lock.unlock();
-
-                    lock.lock(); // Calls your wrapper's lock (debug code runs)
-                }
-            }
-
-        void notify_one() { _cv.notify_one(); }
-        void notify_all() { _cv.notify_all(); }
+        void notify_all()
+        {
+            _cv.notify_all();
+        }
     };
 
 
@@ -401,7 +401,7 @@ namespace th
             //in ipc it would simply a be a call to ipc::signal() and having the pool.processCallbacks() directly in the ipc stdin read loop with ipc::addOnReadLoop() 
             void setWakeupFunc(const std::function<void ()> &f);
 
-            size_t nbWaiting() {std::lock_guard lk(_sync); return _sync.data().threads.size();}
+            size_t nbWaiting() {std::lock_guard lk(_sync); return _sync.data().jobs.size();}
             int nbRunning() {return _running;}
 
             int max(){return _max;}

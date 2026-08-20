@@ -126,5 +126,11 @@ class HttpServer : public TcpServer
         th::Safe<ml::Vec<std::function<void(JsonCommand&)>>> _onEveryJsonCommands;
 
         th::Safe<std::unique_ptr<SSEEventLoop>> _sseUniqueLoop;
+
+        //5 sec
+        size_t _readHttpHeadersTimeout = 5000; //bp cgs
+                                               
+        //16MB default
+        size_t _maxBodySize = 16*1024*1024; //bp cgs
 };
 
