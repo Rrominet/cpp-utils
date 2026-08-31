@@ -1,11 +1,75 @@
 #include "http.h"
 #include "str.h"
+#include "files.2/files.h"
+#include "os.h"
+
 #include <iomanip>
 
 namespace http
 {
     std::vector<Request*> _requests;
     std::string curl = "curl";
+    bool _find_curl_called = false;
+    bool _curl_overriden = false;
+
+    std::vector<std::string> _possible_curl_paths;
+    bool _possible_curl_paths_initialized = false;
+
+    void _init_possible_curl_paths()
+    {
+        if (_possible_curl_paths_initialized)
+            return;
+
+        _possible_curl_paths_initialized = true;
+
+        if (os::type() == "linux" || os::type() == "ios")
+        {
+            _possible_curl_paths.push_back("/usr/bin/curl");
+            _possible_curl_paths.push_back("/usr/share/bin/curl");
+            _possible_curl_paths.push_back("/usr/local/bin/curl");
+            _possible_curl_paths.push_back("/usr/local/curl");
+            _possible_curl_paths.push_back("/usr/local/bin/curl");
+            _possible_curl_paths.push_back("/usr/local/curl/bin/curl");
+        }
+
+        else if (os::type() == "windows")
+        {
+            _possible_curl_paths.push_back("C:\\Program Files\\curl\\bin\\curl.exe");
+            _possible_curl_paths.push_back("C:\\Program Files\\curl\\curl.exe");
+            _possible_curl_paths.push_back("C:\\Program Files\\curl.exe");
+        }
+    }
+
+    bool _program_exists(std::string program)
+    {
+        return files::exists(program) && !files::isDir(program);
+    }
+
+    void _find_curl()
+    {
+        if (_curl_overriden)
+            return;
+        if (_find_curl_called)
+            return;
+
+        _init_possible_curl_paths();
+
+        for (const auto& p : _possible_curl_paths)
+        {
+            if (_program_exists(p))
+            {
+                curl = p;
+                return;
+            }
+        }
+        _find_curl_called = true;
+    }
+
+    void overrideCurlPath(std::string path)
+    {
+        _curl_overriden = true;
+        curl = path;
+    }
 
     void destroyTermintatedRequests()
     {
@@ -81,6 +145,79 @@ namespace http
         return cmd;
     }
 
+    ml::Vec<std::string> cmd_as_vector(std::string url, 
+            const std::string& sdata, 
+            const std::map<std::string, std::string> &params,
+            json data, 
+            Method method,
+            ml::Vec<std::string> headers)
+    {
+        ml::Vec<std::string> result;
+        result.push(curl);
+        result.push("-sS");
+
+        for (const auto& h : headers)
+        {
+            result.push("-H");
+            result.push(h);
+        }
+
+        if (method == POST)
+        {
+            result.push("-X");
+            result.push("POST");
+
+            if (!sdata.empty())
+            {
+                result.push("-d");
+                result.push(sdata);
+            }
+            else if (params.size() != 0)
+            {
+                result.push("-d");
+                result.push(urlEncoded(params));
+            }
+            else if (data.size() != 0)
+            {
+                result.push("-H");
+                result.push("Content-type: application/json");
+                result.push("-d");
+                result.push(data.dump());
+            }
+        }
+        else
+        {
+            if (params.size() != 0)
+                url += "?" + urlEncoded(params);
+        }
+
+        result.push(url);
+        return result;
+    }
+
+    ProcessOut request_sync(std::string url, 
+            const std::string& sdata, 
+            const std::map<std::string, std::string> &params,
+            json data, 
+            Method method)
+    {
+        _find_curl();
+        auto command = cmd_as_vector(url, sdata, params, data, method);
+        return process::exec2(command.vec);
+    }
+
+    ProcessOut get_sync(std::string url,
+            const std::map<std::string, std::string> &params)
+    {
+        return request_sync(url, "", params, {}, GET);
+    }
+
+    ProcessOut post_sync(std::string url, json data, 
+            const std::map<std::string, std::string> &params)
+    {
+        return request_sync(url, "", params, data, POST);
+    }
+
     void request(std::string url,
             const std::string& sdata,
             const std::map<std::string, std::string> &params, 
@@ -90,6 +227,7 @@ namespace http
             boost::function<void (std::string)> onPgr, 
             boost::function<void (std::string)> onError)
     {
+        _find_curl();
         destroyTermintatedRequests();
 
         auto c = cmd(url, sdata, params, data, method);
@@ -127,12 +265,6 @@ namespace http
             boost::function<void (std::string)> onError)
     {
         request(url, "", {}, {}, GET, onDoned, onPgr, onError);
-    }
-
-    void get_sync(const std::string& url)
-    {
-        auto c = cmd(url, "", {}, {}, GET);
-        std::system(c.c_str());
     }
 
     void get(const std::string& url, std::map<std::string, std::string> params, 

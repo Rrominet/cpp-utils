@@ -24,6 +24,8 @@ struct ProcessOut
     std::string stdout;
     std::string stderr;
     int exitCode = -1;
+
+    void log();
 };
 
 class Process

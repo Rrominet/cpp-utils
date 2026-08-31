@@ -19,13 +19,19 @@ namespace http
         POST = 2,
         _DELETE = 3,
     };
-
-    extern std::string curl; // you can change it in your program if you want, it's curl absolute path.
-
+    
+    void overrideCurlPath(std::string path);
     std::string urlEncoded(const std::map<std::string, std::string> &params);
     std::string urlEncoded(std::string data);
 
     std::string cmd(std::string url, 
+            const std::string& sdata="", 
+            const std::map<std::string, std::string> &params = {},
+            json data={}, 
+            Method method=GET,
+            ml::Vec<std::string> headers = {});
+
+    ml::Vec<std::string> cmd_as_vector(std::string url, 
             const std::string& sdata="", 
             const std::map<std::string, std::string> &params = {},
             json data={}, 
@@ -41,12 +47,22 @@ namespace http
             boost::function<void (std::string)> onPgr=0, 
             boost::function<void (std::string)> onError=0);
 
+    ProcessOut request_sync(std::string url, 
+            const std::string& sdata="", 
+            const std::map<std::string, std::string> &params = {},
+            json data={}, 
+            Method method=GET);
+
+    ProcessOut get_sync(std::string url, 
+            const std::map<std::string, std::string> &params = {});
+
+    ProcessOut post_sync(std::string url, json data, 
+            const std::map<std::string, std::string> &params = {});
+
     void get(const std::string& url,
             boost::function<void (std::string)> onDoned, 
             boost::function<void (std::string)> onPgr=0, 
             boost::function<void (std::string)> onError=0);
-
-    void get_sync(const std::string& url);
 
     void get(const std::string& url, const std::map<std::string, std::string> &params, 
             boost::function<void (std::string)> onDoned, 

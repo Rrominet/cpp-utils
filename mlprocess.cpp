@@ -1312,3 +1312,13 @@ std::vector<std::string> process::wrappedInScript(const std::vector<std::string>
     return {"/usr/bin/script", "-q", "-c", c, "/dev/null"};
 }
 
+void ProcessOut::log()
+{
+    lg("stdout : ");	
+    lg(this->stdout);
+    lg("\nstderr : ");
+    lg(this->stderr);
+    lg("\nexit process code : ");
+    lg(this->exitCode);
+}
+
