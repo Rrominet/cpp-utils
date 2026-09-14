@@ -12,7 +12,7 @@ class Sounds;
 class mlSystem{
     protected : 
         std::string _out;
-        ml::Vec<std::unique_ptr<mlSound>> tmps;
+        ml::Vec<std::unique_ptr<mlSound>> _tmps;
         FMOD::System * _fmod = nullptr;
         std::mutex _mtx;
 
@@ -23,10 +23,10 @@ class mlSystem{
             UNBLOCKING,
         };
 
-        mlSystem(FMOD::System* sys) : tmps(){_fmod = sys;}
-        ~mlSystem() = default;
+        mlSystem(FMOD::System* sys) : _tmps(){_fmod = sys;}
+        ~mlSystem(){this->release();}
 
-        ml::Vec<std::unique_ptr<mlSound>>& sounds(){return tmps;}
+        ml::Vec<std::unique_ptr<mlSound>>& sounds(){return _tmps;}
         std::string out(){return _out;}
 
         static std::unique_ptr<mlSystem> createAndInit(

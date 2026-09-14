@@ -29,7 +29,7 @@ includes = [
         libs + "/sha3",
         libs + "/FreeImage/Source",
         libs + "/FreeImage/Wrapper/FreeImagePlus",
-        libs + "/fmodstudioapi20000linux/api/core/inc",
+        libs + "/miniaudio",
         ]
 
 srcs = [
@@ -57,8 +57,6 @@ fm.addToLibs([
     "stdc++fs",
     "boost_filesystem",
     libs + "/FreeImagePlus-build/libfreeimageplus.a",
-    "libfmod.so",
-    "libfmodL.so"
     ])
 
 fm.srcs_exclude += ["main.cpp"]

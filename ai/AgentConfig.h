@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <nlohmann/json.hpp>
+#include "vec.h"
 using json = nlohmann::json;
 
 
@@ -24,6 +25,16 @@ namespace ml
             //can be claude, gpt, grok, gemini
             std::string _modelVendor; //bp cgs
             std::string _logFile; //bp cgs
+                                  
+            //if not setted, it's goes to default vendor setting
+            //often can be none, minimal, low, medium, high, xhigh, and max.
+            std::string _reasoning; //bp cgs
+
+            //only used if _reasoning is setted
+            //can be setted to standard, pro
+            std::string _reasoningMode = "standard"; //bp cgs
+
+            ml::Vec<std::string> _tools; //bp cg
 
         public : 
 #include "./AgentConfig_gen.h"

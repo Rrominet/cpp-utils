@@ -20,3 +20,15 @@ std::string logFile(){return _logFile;}
 const std::string& logFile() const {return _logFile;}
 void setLogFile(const std::string& logFile){_logFile = logFile;}
 
+std::string reasoning(){return _reasoning;}
+const std::string& reasoning() const {return _reasoning;}
+void setReasoning(const std::string& reasoning){_reasoning = reasoning;}
+
+std::string reasoningMode(){return _reasoningMode;}
+const std::string& reasoningMode() const {return _reasoningMode;}
+void setReasoningMode(const std::string& reasoningMode){_reasoningMode = reasoningMode;}
+
+ml::Vec<std::string>& tools(){return _tools;}
+const ml::Vec<std::string>& tools() const {return _tools;}
+
+

@@ -38,15 +38,3 @@ std::string rawllm(){return _rawllm;}
 const std::string& rawllm() const {return _rawllm;}
 
 
-bool useWebSearch(){return _useWebSearch;}
-const bool useWebSearch() const {return _useWebSearch;}
-void setUseWebSearch(bool useWebSearch){_useWebSearch = useWebSearch;}
-
-std::string reasoning(){return _reasoning;}
-const std::string& reasoning() const {return _reasoning;}
-void setReasoning(const std::string& reasoning){_reasoning = reasoning;}
-
-std::string reasoningMode(){return _reasoningMode;}
-const std::string& reasoningMode() const {return _reasoningMode;}
-void setReasoningMode(const std::string& reasoningMode){_reasoningMode = reasoningMode;}
-

@@ -74,16 +74,6 @@ namespace ml
             void _writeWhatItReceived(const std::string& received);
             void _writeLog(const std::string& msg);
 
-            bool _useWebSearch = false; //bp cgs
-
-            //if not setted, it's goes to default vendor setting
-            //often can be none, minimal, low, medium, high, xhigh, and max.
-            std::string _reasoning; //bp cgs
-
-            //only used if _reasoning is setted
-            //can be setted to standard, pro
-            std::string _reasoningMode = "standard"; //bp cgs
-
         public : 
 #include "./Agent_gen.h"
 

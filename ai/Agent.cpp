@@ -83,14 +83,14 @@ namespace ml
         pdata["max-tokens"] = _config.max_tokens();
         pdata["tools"] = json::array();
 
-        if (_useWebSearch)
+        if (_config.tools().contains("web_search"))
             pdata["tools"].push_back({{"type", "web_search"}});
 
-        if (!_reasoning.empty())
+        if (!_config.reasoning().empty())
         {
             json reasoning;
-            reasoning["effort"] = _reasoning;
-            reasoning["mode"] = _reasoningMode;
+            reasoning["effort"] = _config.reasoning();
+            reasoning["mode"] = _config.reasoningMode();
             pdata["reasoning"] = reasoning;
         }
 

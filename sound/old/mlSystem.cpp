@@ -64,7 +64,7 @@ mlSound* mlSystem::sound(const string &path,
     auto s = std::make_unique<mlSound>(path, this, mem, mode, exinfo);
     {
         std::lock_guard lk(_mtx);
-        tmps.push(std::move(s));
+        _tmps.push(std::move(s));
     }
     return this->sounds().back().get();
 }

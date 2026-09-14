@@ -150,7 +150,7 @@ class mlSound
         //thread safe
         bool loading() const {return _loading;}
 
-        //nmber of char in the data
+        //number of char in the data
         long memory();
 
         float speed()const {return _speed;}
