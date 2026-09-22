@@ -8,6 +8,10 @@ std::string inData(){return _inData;}
 const std::string& inData() const {return _inData;}
 void setInData(const std::string& inData){_inData = inData;}
 
+ml::Vec<LLMessage>& llmMessages(){return _llmMessages;}
+const ml::Vec<LLMessage>& llmMessages() const {return _llmMessages;}
+void setLlmMessages(const ml::Vec<LLMessage>& llmMessages){_llmMessages = llmMessages;}
+
 std::string outData(){return _outData;}
 const std::string& outData() const {return _outData;}
 

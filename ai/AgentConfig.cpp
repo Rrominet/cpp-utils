@@ -33,6 +33,8 @@ namespace ml
         config["model"] = _model;
         config["model-class"] = _modelVendor;
         config["logFile"] = _logFile;
+        config["reasoning"] = _reasoning;
+        config["reasoning-mode"] = _reasoningMode;
         return config;
     }
 
@@ -46,5 +48,7 @@ namespace ml
         if (config.contains("model")) _model = config["model"].get<std::string>();
         if (config.contains("logFile")) _logFile = config["logFile"].get<std::string>();
         if (config.contains("model-class")) _modelVendor = config["model-class"].get<std::string>();
+        if (config.contains("reasoning")) _reasoning = config["reasoning"].get<std::string>();
+        if (config.contains("reasoning-mode")) _reasoningMode = config["reasoning-mode"].get<std::string>();
     }
 }

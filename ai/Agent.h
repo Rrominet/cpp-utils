@@ -8,6 +8,19 @@
 class Process;
 namespace ml
 {
+    struct LLMessage
+    {
+        std::string role;
+        std::string content;
+
+        json asjson() const;
+        void setFromJson(const json& j);
+        static LLMessage fromJson(const json& j);
+        static LLMessage asUser(const std::string& content) { return { "user", content }; }
+        static LLMessage asAi(const std::string& content) { return { "assistant", content }; }
+    };
+
+
     class Agent
     {
         public:
@@ -48,6 +61,11 @@ namespace ml
         protected:
             AgentConfig _config; //bp cg
             std::string _inData; //bp cgs
+
+            //messages sent as _inData if _inData is empty
+            //used to track a conversation
+            //_inData AND _llmMessages are setted, _inData is added as a last message from the user.
+            ml::Vec<LLMessage> _llmMessages; //bp cgs
             std::string _outData; //bp cg
             std::string _context; //bp cgs
             std::string _id; //bp cgs

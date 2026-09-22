@@ -124,6 +124,31 @@ namespace th
                     return _data;
                 }
 
+                void setData(const T& data, bool fuck_the_lock=false)
+                {
+#ifdef mydebug
+                    if (fuck_the_lock)
+                        _data = data;
+
+                    if (!_mtx.owner().has_value())
+                    {
+                        lg("mutex (data) : " << _mtx.name() << " not locked by any thread. This data should be protected by a lock.");
+                        std::terminate();
+                    }
+
+                    auto cid = std::this_thread::get_id();
+                    if (_mtx.owner().value() != cid)
+                    {
+                        lg("mutex (data) : " << _mtx.name() << " locked by another thread : " << _mtx.owner().value());
+                        lg("Meaning you're trying to access the data from a different thread than the one that locked it. You need to lock it first.");
+                        std::terminate();
+                    }
+#else
+#endif
+                    _data = data;
+
+                }
+
                 M& mtx(){return _mtx;}
 
             private : 

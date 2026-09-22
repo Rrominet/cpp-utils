@@ -6,6 +6,29 @@
 
 namespace ml 
 {
+
+    json LLMessage::asjson() const
+    {
+        json r;	
+        r["role"] = this->role;
+        r["content"] = this->content;
+        return r;
+    }
+
+    void LLMessage::setFromJson(const json& j)
+    {
+        if (j.contains("role"))
+            this->role = j["role"];
+        if (j.contains("content"))
+            this->content = j["content"];	
+    }
+
+    LLMessage LLMessage::fromJson(const json& j)
+    {
+        LLMessage r;	
+        r.setFromJson(j);
+        return r;
+    }
     const std::string Agent::name() const
     {
         if(!_name.empty())
@@ -48,8 +71,8 @@ namespace ml
         lg("Agent : " + _id + " is exec(" << llm << ")");
         if (!llm)
             return ml::ret::fail("The llm process is null.");
-        if (_inData.empty())
-            return ml::ret::fail("The in data is empty. Nothing to send to the llm.");
+        if (_inData.empty() && _llmMessages.empty())
+            return ml::ret::fail("The in data is empty (no inData or llmMessages). Nothing to send to the llm.");
 
         lg("Executing the _beforeLlmCall functions : " << _beforeLlmCall.size());
         std::string _beforeRes;
@@ -76,12 +99,28 @@ namespace ml
         json pdata;
         pdata["context"] = _context;
         pdata["messages"] = json::array();
-        pdata["messages"].push_back({{"role", "user"}, {"content", _inData}});
         pdata["model"] = _config.model();
         pdata["model-class"] = _config.modelVendor();
         pdata["api-key"] = _config.api_keys();
         pdata["max-tokens"] = _config.max_tokens();
         pdata["tools"] = json::array();
+
+        //setting the messages
+        for (const auto& msg : _llmMessages)
+            pdata["messages"].push_back(msg.asjson());
+
+        if (!_inData.empty())
+        {
+            if (_llmMessages.empty() ||  _llmMessages.back().role == "assistant" )
+                pdata["messages"].push_back({{"role", "user"}, {"content", _inData}});
+            else 
+                pdata["messages"].back()["content"] += "\n\n" + _inData;
+        }
+
+        //
+        //
+        if (pdata["messages"].empty())
+            return ml::ret::fail("No messages to send to the llm in the compiled data.");
 
         if (_config.tools().contains("web_search"))
             pdata["tools"].push_back({{"type", "web_search"}});
@@ -126,6 +165,8 @@ namespace ml
                     _rawllm += m["text"];
             }
         }
+
+        //TODO add all the infos concerning token cost and the rest of the data given by the llm vendor !
 
         _writeWhatItReceived(_rawllm);
 
