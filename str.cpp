@@ -6,6 +6,7 @@
 #include <iomanip>
 #include <cctype>
 #include <sstream>
+#include <regex>
 #include "./mlTime.h"
 #include "./tconv.h"
 
@@ -675,6 +676,27 @@ namespace str
     {
         std::string_view sv(s);
         return std::string(trim(sv));
+    }
+
+    std::string findEmail(const std::string& s)
+    {
+        std::string text = str::replace(s, "_a_", "@");
+
+        static const std::regex pattern(
+                R"([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})"
+                );
+
+        std::smatch match;
+        if (std::regex_search(text, match, pattern))
+        {
+            std::string _r = match.str();
+            _r = str::lower(_r);
+            for (const auto& ext : {".html", ".txt", ".log", ".json", ".crash"})
+                _r = str::replace(_r, ext, "");
+            return _r;
+        }
+
+        return "";
     }
 }
 

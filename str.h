@@ -115,7 +115,7 @@ namespace str
 
     bool isEqual(const std::string& s1, const std::string& s2, bool ignoreCase=false);
     std::string trimed(const std::string& s);
-
+    std::string findEmail(const std::string& s);
 }
 
 namespace std

@@ -86,4 +86,15 @@ namespace tpl
     // Utility to simplify checking
     template <typename T>
         inline constexpr bool isIterable = is_iterable<T>::value;
+
+    // perform a dynamic cast and check if the cast succeed
+    // assertIfFalse only works in debug build.
+    template <typename C, typename B>
+        C* as(B* b, bool assertIfFalse=true)
+        {
+            auto c = dynamic_cast<C*>(b);
+            if (assertIfFalse)
+                assert(c && "Dynamic cast failed");
+            return c;
+        }
 }

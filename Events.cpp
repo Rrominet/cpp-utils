@@ -80,7 +80,17 @@ namespace ml
         }
 
         for (auto &func : _listeners[type])
-            func.second();
+        {
+            try
+            {
+                func.second();
+            }
+            catch(const std::exception& e)
+            {
+                lg("could not execute one of the function of the event " + type + " : ");
+                lg(e.what());
+            }
+        }
     }
 
     void Events::wait(const std::string& type)

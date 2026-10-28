@@ -28,6 +28,7 @@ class TcpServer
         static void setSocketTimeouts(tcp::socket& socket, int read_seconds, int write_seconds);
         void write(std::shared_ptr<tcp::socket> s, const std::string& res);
         void write(std::shared_ptr<tcp::socket> s, const std::string& res, boost::system::error_code& error);
+        void quit() { _quit = true; }
 
     protected : 
         int _port; //bp cgs
@@ -53,6 +54,9 @@ class TcpServer
         //1h
         size_t _writeSocketTimeout = 1000*60; //bp cgs
         
+        // if this is set to true, the server quit and don't launch run().
+        bool _quit = false;
+
     public : 
 #include "./TcpServer_gen.h"
 };

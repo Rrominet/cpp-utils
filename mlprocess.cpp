@@ -253,7 +253,11 @@ void Process::start()
             _cwd = os::home();
 
         if (!files::isDir(_cwd))
-            throw error::dir_not_found("current working dir is not a dir !");
+        {
+            _cwd = os::home();
+            if (!files::isDir(_cwd))
+                throw error::dir_not_found("current working dir " + _cwd + " is not a dir !");
+        }
 
         // Join previous run thread if it exists
         if (_syncRuntime.data().runthread && _syncRuntime.data().runthread->joinable())

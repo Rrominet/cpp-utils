@@ -16,10 +16,12 @@ TcpServer::~TcpServer(){}
 
 void TcpServer::run()
 {
+    if (_quit)
+        return;
     lg("TcpServer::run() - Port " << _port);
     try
     {
-        for (;;)
+        while(!_quit)
         {
             lg("Accepting the socket...");
             std::shared_ptr<tcp::socket> s = std::make_shared<tcp::socket>(_io_service);
